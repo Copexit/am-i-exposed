@@ -5,8 +5,8 @@ import { useTranslation } from "react-i18next";
 import { PageShell } from "@/components/PageShell";
 import { PosterVideo, type PosterVideoHandle } from "@/components/media/PosterVideo";
 import { VIDEOS_ENABLED } from "@/lib/media/videos-enabled";
-import { pickVideoLang, subtitleTracks, tutorialSource, type VideoLang } from "@/lib/media/video-sources";
-import { TUTORIAL_CHAPTERS, formatTime } from "@/lib/media/tutorial-chapters";
+import { graphTutorialSource, pickVideoLang, subtitleTracks, tutorialSource, type VideoLang } from "@/lib/media/video-sources";
+import { GRAPH_TUTORIAL_CHAPTERS, TUTORIAL_CHAPTERS, formatTime } from "@/lib/media/tutorial-chapters";
 import { EXAMPLES } from "@/lib/constants";
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bitcoin";
@@ -18,10 +18,36 @@ const TRY_LABELS = [
   "page.presend_fresh",
 ];
 const TRY = TRY_LABELS.map((k) => EXAMPLES.find((e) => e.labelKey === k)).filter((e) => e !== undefined);
+const GRAPH = graphTutorialSource();
+
+function ChapterList({ chapters, seek }: { chapters: { start: number; title: string }[]; seek: (s: number) => void }) {
+  const { t } = useTranslation();
+  return (
+    <ol className="space-y-1">
+      {chapters.map((c) => {
+        const time = formatTime(c.start);
+        return (
+          <li key={c.start}>
+            <button
+              type="button"
+              aria-label={t("tutorial.jump", { time, title: c.title })}
+              onClick={() => seek(c.start)}
+              className={`min-h-[44px] w-full rounded-lg px-3 text-left text-sm text-muted hover:text-foreground transition-colors cursor-pointer ${FOCUS}`}
+            >
+              <span className="num text-bitcoin">{time}</span>
+              <span className="ml-2">{c.title}</span>
+            </button>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
 export function TutorialPage() {
   const { t, i18n } = useTranslation();
   const ref = useRef<PosterVideoHandle>(null);
+  const graphRef = useRef<PosterVideoHandle>(null);
   // Language of the mounted video: chapter times must keep matching it after a UI language switch.
   const [playedLang, setPlayedLang] = useState<VideoLang | null>(null);
 
@@ -58,25 +84,10 @@ export function TutorialPage() {
 
       <section className="space-y-3">
         <h2 className="text-xl font-semibold text-foreground">{t("tutorial.chapters")}</h2>
-        <ol className="space-y-1">
-          {TUTORIAL_CHAPTERS.map((c) => {
-            const time = formatTime(c.start[lang]);
-            const title = t(`tutorial.chapter.${c.id}`);
-            return (
-              <li key={c.id}>
-                <button
-                  type="button"
-                  aria-label={t("tutorial.jump", { time, title })}
-                  onClick={() => ref.current?.seek(c.start[lang])}
-                  className={`min-h-[44px] w-full rounded-lg px-3 text-left text-sm text-muted hover:text-foreground transition-colors cursor-pointer ${FOCUS}`}
-                >
-                  <span className="num text-bitcoin">{time}</span>
-                  <span className="ml-2">{title}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ol>
+        <ChapterList
+          chapters={TUTORIAL_CHAPTERS.map((c) => ({ start: c.start[lang], title: t(`tutorial.chapter.${c.id}`) }))}
+          seek={(sec) => ref.current?.seek(sec)}
+        />
       </section>
 
       <section className="space-y-3">
@@ -94,6 +105,25 @@ export function TutorialPage() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="space-y-3" aria-labelledby="graph-tutorial">
+        <h2 id="graph-tutorial" className="text-2xl font-semibold text-foreground">{t("tutorial.graph.title")}</h2>
+        <p className="text-muted leading-relaxed max-w-3xl">{t("tutorial.graph.intro")}</p>
+        <PosterVideo
+          ref={graphRef}
+          resolve={() => GRAPH}
+          poster={GRAPH.poster}
+          aspect={GRAPH.aspect}
+          tracks={subtitleTracks(i18n.language, "graph-tutorial", ["en", "es"])}
+          playLabel={t("tutorial.graph.play")}
+          videoLabel={t("tutorial.graph.title")}
+        />
+        <h3 className="text-lg font-semibold text-foreground">{t("tutorial.chapters")}</h3>
+        <ChapterList
+          chapters={GRAPH_TUTORIAL_CHAPTERS.map((c) => ({ start: c.start, title: t(`tutorial.graph.chapter.${c.id}`) }))}
+          seek={(sec) => graphRef.current?.seek(sec)}
+        />
       </section>
     </PageShell>
   );

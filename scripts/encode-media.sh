@@ -26,4 +26,12 @@ for L in en es; do
   # SRT -> WebVTT (comma -> dot in timestamps)
   { echo "WEBVTT"; echo; sed -E 's/([0-9]{2}:[0-9]{2}:[0-9]{2}),([0-9]{3})/\1.\2/g' "$SRC/tutorial/tutorial-$L.srt" | tr -d '\r'; } > "$OUT/tutorial-$L.vtt"
 done
+# Graph tutorial: English narration only, subtitles in English and Spanish
+if [ "$POSTERS_ONLY" = 0 ]; then
+  enc "$SRC/graph-tutorial/graph-tutorial-en-16x9.mp4" "graph-tutorial-en-16x9" 1280:720 "${TUT_CRF:-23}" "-c:a aac -b:a 96k -ac 1"
+  for L in en es; do
+    { echo "WEBVTT"; echo; sed -E 's/([0-9]{2}:[0-9]{2}:[0-9]{2}),([0-9]{3})/\1.\2/g' "$SRC/graph-tutorial/graph-tutorial-$L.srt" | tr -d '\r'; } > "$OUT/graph-tutorial-$L.vtt"
+  done
+fi
+poster "graph-tutorial-en-16x9" "graph-tutorial-en-16x9" "${TUT_POSTER_T:-2.0}"
 ls -la "$OUT"

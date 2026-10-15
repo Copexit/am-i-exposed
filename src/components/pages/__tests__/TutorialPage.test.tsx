@@ -63,6 +63,26 @@ describe("TutorialPage", () => {
     expect(v.currentTime).toBeCloseTo(169.3);
   });
 
+  it("graph tutorial: en audio, es subtitles by default in es, chapter seeks", () => {
+    h.lang = "es";
+    const { container } = render(<TutorialPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Reproducir el tutorial del grafo" }));
+    const v = [...container.querySelectorAll("video")].find((x) => x.getAttribute("src")?.includes("graph-tutorial")) as HTMLVideoElement;
+    expect(v.getAttribute("src")).toBe("/media/graph-tutorial-en-16x9.mp4");
+    const tracks = [...v.querySelectorAll("track")].map((t) => [t.getAttribute("srclang"), t.hasAttribute("default")]);
+    expect(tracks).toEqual([["en", false], ["es", true]]);
+    fireEvent.click(screen.getByRole("button", { name: "Ir a 6:24, Buscar conexión" }));
+    expect(v.currentTime).toBeCloseTo(384.43);
+  });
+
+  it("graph tutorial: English subtitles by default outside es", () => {
+    h.lang = "pl";
+    const { container } = render(<TutorialPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Play the graph tutorial" }));
+    const v = [...container.querySelectorAll("video")].find((x) => x.getAttribute("src")?.includes("graph-tutorial")) as HTMLVideoElement;
+    expect(v.querySelector("track[default]")?.getAttribute("srclang")).toBe("en");
+  });
+
   it("lists the four example scans", () => {
     const { container } = render(<TutorialPage />);
     const hrefs = [...container.querySelectorAll("a")].map((a) => a.getAttribute("href"));
