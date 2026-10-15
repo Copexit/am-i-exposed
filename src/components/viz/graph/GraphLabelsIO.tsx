@@ -44,7 +44,7 @@ export function GraphLabelsIO({ nodes, rootTxid, nodeLabels, edgeLabels, onSetLa
     if (!parsed) { setStatus(t("wallet.labels.tooLarge", { size: "5 MB", defaultValue: "The file is larger than {{size}}, too large for a label export." })); return; }
     if (parsed.records.length === 0) { setStatus(t("wallet.labels.none", { defaultValue: "No labels found: the file has no record with a label or a freeze." })); return; }
     const fits = parsed.records.filter((r) => recordFitsGraph(r, nodeTxids, edges));
-    const merge = mergeBip329(existing, fits);
+    const merge = mergeBip329(existing, fits, true);
     const unmatched = parsed.records.length - fits.length;
     if (merge.conflicts.length === 0 && unmatched === 0) commit(merge, new Set());
     else setPending({ merge, unmatched });

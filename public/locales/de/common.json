@@ -3636,12 +3636,14 @@
   "labels.preview.conflicts_other": "{{n}} Konflikte",
   "labels.preview.unmatched": "{{n}} nicht in diesem Graphen",
   "labels.preview.unmatched_other": "{{n}} nicht in diesem Graphen",
-  "labels.preview.note": "Vorhandene Labels bleiben erhalten, solange das neue nicht angehakt ist.",
-  "labels.preview.useAll": "Alle neuen verwenden",
-  "labels.preview.use": "Neues verwenden",
+  "labels.preview.note": "Vorhandene Labels bleiben erhalten, solange das eingehende nicht angehakt ist.",
+  "labels.preview.useAll": "Alle eingehenden verwenden",
+  "labels.preview.use": "Eingehendes verwenden",
   "labels.preview.ref": "Referenz",
   "labels.preview.existing": "Vorhanden",
-  "labels.preview.incoming": "Neu",
-  "labels.preview.useFor": "Neues Label für {{ref}} verwenden",
-  "labels.preview.apply": "Import anwenden"
+  "labels.preview.incoming": "Eingehend",
+  "labels.preview.useFor": "Eingehendes Label für {{ref}} verwenden",
+  "labels.preview.apply": "Import anwenden",
+  "labels.preview.frozen": "eingefroren",
+  "labels.preview.spendable": "ausgebbar"
 }

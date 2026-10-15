@@ -61,11 +61,11 @@ export function WalletLabelsPanel({ records, onChange, addressInfos, xpub }: {
     const m = matchLabels(parsed.records, addressInfos, xpub);
     setError(null);
     const sum: ImportSummary = { read: parsed.records.length, onCoins: m.onCoins, history: m.history, unmatched: m.unmatched, invalid: parsed.invalid, truncated: parsed.truncated };
-    setPaste("");
-    setPasteOpen(false);
     // A new import adds to the labels already loaded; a clash on the same ref is kept as is until the preview says otherwise.
     const merge = mergeBip329([...records], parsed.records);
     if (merge.conflicts.length > 0) { setPending({ merge, summary: sum }); return; }
+    setPaste("");
+    setPasteOpen(false);
     setSummary(sum);
     onChange(applyMerge([...records], merge, new Set()));
   }
@@ -94,7 +94,7 @@ export function WalletLabelsPanel({ records, onChange, addressInfos, xpub }: {
         <Bip329ConflictPreview
           merge={pending.merge}
           onCancel={() => setPending(null)}
-          onApply={(keys) => { onChange(applyMerge([...records], pending.merge, keys)); setSummary(pending.summary); setPending(null); }}
+          onApply={(keys) => { onChange(applyMerge([...records], pending.merge, keys)); setSummary(pending.summary); setPaste(""); setPasteOpen(false); setPending(null); }}
         />
       )}
       <p className="text-sm text-muted leading-relaxed max-w-2xl">

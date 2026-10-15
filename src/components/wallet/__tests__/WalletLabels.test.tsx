@@ -298,3 +298,32 @@ describe("labels hint (no labels loaded)", () => {
     expect(screen.queryByTestId("labels-hint")).toBeNull();
   });
 });
+
+describe("conflict preview modal", () => {
+  it("shows the freeze flag, traps Tab, keeps keys from the page, and Escape closes only the modal", () => {
+    const page = vi.fn();
+    window.addEventListener("keydown", page);
+    render(<Harness />);
+    const paste = (text: string) => {
+      fireEvent.click(screen.getByRole("button", { name: "Paste" }));
+      fireEvent.change(screen.getByLabelText("BIP329 JSON Lines, one record per line"), { target: { value: text } });
+      fireEvent.click(screen.getByRole("button", { name: "Apply labels" }));
+    };
+    paste(`{"type":"output","ref":"${nokyc.txid}:0","label":"x"}`);
+    paste(`{"type":"output","ref":"${nokyc.txid}:0","label":"x2","spendable":false}`);
+    const table = screen.getByTestId("labels-conflicts");
+    expect(within(table).getByText("frozen")).toBeTruthy();
+    // Tab from the last control wraps to the first
+    const apply = screen.getByRole("button", { name: "Apply import" });
+    apply.focus();
+    fireEvent.keyDown(apply, { key: "Tab" });
+    expect(document.activeElement).toBe(screen.getByLabelText("Use all incoming"));
+    page.mockClear();
+    fireEvent.keyDown(apply, { key: "s" });
+    expect(page).not.toHaveBeenCalled();
+    fireEvent.keyDown(apply, { key: "Escape" });
+    expect(page).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("labels-preview")).toBeNull();
+    window.removeEventListener("keydown", page);
+  });
+});

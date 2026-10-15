@@ -3643,5 +3643,7 @@
   "labels.preview.existing": "Existente",
   "labels.preview.incoming": "Entrante",
   "labels.preview.useFor": "Usar la etiqueta entrante para {{ref}}",
-  "labels.preview.apply": "Aplicar importación"
+  "labels.preview.apply": "Aplicar importación",
+  "labels.preview.frozen": "congelada",
+  "labels.preview.spendable": "gastable"
 }

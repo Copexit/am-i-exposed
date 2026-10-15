@@ -3643,5 +3643,7 @@
   "labels.preview.existing": "Existente",
   "labels.preview.incoming": "Recebido",
   "labels.preview.useFor": "Usar o rótulo recebido para {{ref}}",
-  "labels.preview.apply": "Aplicar importação"
+  "labels.preview.apply": "Aplicar importação",
+  "labels.preview.frozen": "congelado",
+  "labels.preview.spendable": "gastável"
 }

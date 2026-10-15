@@ -3871,5 +3871,7 @@
   "labels.preview.existing": "Istniejąca",
   "labels.preview.incoming": "Przychodząca",
   "labels.preview.useFor": "Użyj przychodzącej etykiety dla {{ref}}",
-  "labels.preview.apply": "Zastosuj import"
+  "labels.preview.apply": "Zastosuj import",
+  "labels.preview.frozen": "zamrożona",
+  "labels.preview.spendable": "do wydania"
 }

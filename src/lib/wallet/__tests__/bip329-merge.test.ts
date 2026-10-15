@@ -27,3 +27,21 @@ describe("mergeBip329 spendable", () => {
     expect(mergeBip329([frozen], [{ ...frozen, spendable: true }]).conflicts).toHaveLength(1);
   });
 });
+
+describe("field-wise apply", () => {
+  const key = (r: Bip329Record) => new Set([recordKey(r)]);
+  it("incoming without spendable keeps the freeze; spendable-only keeps the label", () => {
+    const ref = `${tx(1)}:0`;
+    const frozen: Bip329Record = { type: "output", ref, label: "a", spendable: false, origin: "o" };
+    let m = mergeBip329([frozen], [{ type: "output", ref, label: "b" }]);
+    expect(applyMerge([frozen], m, key(frozen))).toEqual([{ type: "output", ref, label: "b", spendable: false, origin: "o" }]);
+    const labelled: Bip329Record = { type: "output", ref, label: "a" };
+    m = mergeBip329([labelled], [{ type: "output", ref, spendable: false }]);
+    expect(m.conflicts).toHaveLength(1);
+    expect(applyMerge([labelled], m, key(labelled))).toEqual([{ type: "output", ref, label: "a", spendable: false }]);
+  });
+  it("labelOnly ignores spendable", () => {
+    const r: Bip329Record = { type: "output", ref: `${tx(1)}:0`, label: "a" };
+    expect(mergeBip329([r], [{ ...r, spendable: true }], true).unchanged).toBe(1);
+  });
+});

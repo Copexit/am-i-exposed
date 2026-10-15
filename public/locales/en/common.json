@@ -3643,5 +3643,7 @@
   "labels.preview.existing": "Existing",
   "labels.preview.incoming": "Incoming",
   "labels.preview.useFor": "Use the incoming label for {{ref}}",
-  "labels.preview.apply": "Apply import"
+  "labels.preview.apply": "Apply import",
+  "labels.preview.frozen": "frozen",
+  "labels.preview.spendable": "spendable"
 }
