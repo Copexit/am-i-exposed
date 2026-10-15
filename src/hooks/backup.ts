@@ -11,10 +11,15 @@ import { bookmarkStore, mergeBookmarks, mergeGraphs, type Bookmark } from "./use
 import { savedGraphStore } from "./useSavedGraphs";
 import { validateSavedGraph, type SavedGraph } from "@/lib/graph/saved-graph-types";
 import { exportSavedWallets, importSavedWallets, SavedWalletError, type SavedWalletEntry } from "@/lib/wallet/saved-wallets";
-import { DEFAULT_ANALYSIS_SETTINGS, saveAnalysisSettings, type AnalysisSettings } from "@/lib/analysis/settings";
+import { sanitizeAnalysisSettings, saveAnalysisSettings } from "@/lib/analysis/settings";
+import { normalizeApiUrl } from "@/lib/api/normalize-api-url";
 import { isSealedEnvelope, type SealedEnvelope } from "@/lib/crypto/envelope";
 
-/** localStorage keys restored by "Also restore settings" (each reader validates its own value). */
+/**
+ * localStorage keys carried in a backup. "Also restore settings" restores all
+ * but the custom API URL, which has its own opt-in (it decides where every
+ * lookup is sent).
+ */
 export const SETTINGS_KEYS = ["analysis-settings", "ami-theme", "ami-language", "ami-network", "ami-custom-api-url"] as const;
 
 export interface BackupPayload {
@@ -32,6 +37,16 @@ export interface BackupOptions {
   includeWallets: boolean;
   includeSavedWallets: boolean;
   includeSettings: boolean;
+  /** Restore only: write the file's custom API URL (never part of includeSettings) */
+  includeCustomApi?: boolean;
+}
+
+const CUSTOM_API_KEY = "ami-custom-api-url";
+
+/** The file's custom API URL, validated as the settings input does, or null. */
+export function backupCustomApi(p: BackupPayload): string | null {
+  const v = p.settings?.[CUSTOM_API_KEY];
+  return v ? normalizeApiUrl(v) : null;
 }
 
 export async function buildBackup(opts: BackupOptions): Promise<BackupPayload> {
@@ -87,7 +102,8 @@ export function summarizeBackup(p: BackupPayload) {
     wallets,
     graphs: p.graphs.filter(validateSavedGraph).length,
     savedWallets: p.savedWallets?.length ?? 0,
-    settings: Object.keys(p.settings ?? {}).length,
+    settings: Object.keys(p.settings ?? {}).filter((k) => k !== CUSTOM_API_KEY).length,
+    customApiHost: ((u) => (u ? new URL(u).host : null))(backupCustomApi(p)),
   };
 }
 
@@ -108,13 +124,7 @@ export async function restoreBackup(p: BackupPayload, opts: BackupOptions): Prom
   const out: RestoreResult = { bookmarks: 0, graphs: 0, savedWallets: 0, settings: 0 };
   const full = (): RestoreResult => ({ ...out, error: "storage_full" });
 
-  const b = mergeBookmarks(p.bookmarks, opts.includeWallets);
-  if (b === null) return full();
-  out.bookmarks = b;
-  const g = mergeGraphs(p.graphs);
-  if (g === null) return full();
-  out.graphs = g;
-
+  // IndexedDB first: an unexpected failure there leaves nothing half written
   if (opts.includeSavedWallets && p.savedWallets) {
     try {
       out.savedWallets = await importSavedWallets(p.savedWallets);
@@ -124,20 +134,32 @@ export async function restoreBackup(p: BackupPayload, opts: BackupOptions): Prom
     }
   }
 
+  const b = mergeBookmarks(p.bookmarks, opts.includeWallets);
+  if (b === null) return full();
+  out.bookmarks = b;
+  const g = mergeGraphs(p.graphs);
+  if (g === null) return full();
+  out.graphs = g;
+
+  const writes: [string, string][] = [];
   if (opts.includeSettings && p.settings) {
     for (const [k, v] of Object.entries(p.settings)) {
-      if (!(SETTINGS_KEYS as readonly string[]).includes(k)) continue;
       if (k === "analysis-settings") {
         let parsed: unknown;
         try { parsed = JSON.parse(v); } catch { continue; }
-        if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) continue;
-        // Saved through the settings module so open views pick it up at once
-        saveAnalysisSettings({ ...DEFAULT_ANALYSIS_SETTINGS, ...(parsed as Partial<AnalysisSettings>) });
-      } else {
-        try { localStorage.setItem(k, v); } catch { return full(); }
+        // Clamped and typed like the settings panel; saved through the module so open views pick it up at once
+        saveAnalysisSettings(sanitizeAnalysisSettings(parsed));
+        out.settings++;
+      } else if (k !== CUSTOM_API_KEY && (SETTINGS_KEYS as readonly string[]).includes(k)) {
+        writes.push([k, v]);
       }
-      out.settings++;
     }
+  }
+  const api = opts.includeCustomApi ? backupCustomApi(p) : null;
+  if (api) writes.push([CUSTOM_API_KEY, api]);
+  for (const [k, v] of writes) {
+    try { localStorage.setItem(k, v); } catch { return full(); }
+    out.settings++;
   }
   return out;
 }

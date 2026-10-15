@@ -107,7 +107,7 @@ export function BackupExportDialog({ walletCount, onDone, onCancel }: {
           <label className="block space-y-1">
             <span className="text-muted">{t("backup.passwordRepeat", { defaultValue: "Repeat the password" })}</span>
             <input type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)}
-              aria-invalid={mismatch || undefined} className={inputClass} data-testid="backup-password-repeat" />
+              aria-invalid={mismatch || undefined} aria-describedby={mismatch ? `${id}-mismatch` : undefined} className={inputClass} data-testid="backup-password-repeat" />
           </label>
           <p id={`${id}-hint`} aria-live="polite" className="text-muted">
             {pw.length > 0 && tooShort
@@ -118,7 +118,7 @@ export function BackupExportDialog({ walletCount, onDone, onCancel }: {
                 strong: t("backup.strengthStrong", { defaultValue: "Strength: strong" }),
               }[strength(pw)]}
           </p>
-          {mismatch && <p className="text-severity-critical">{t("backup.passwordMismatch", { defaultValue: "The passwords do not match." })}</p>}
+          {mismatch && <p id={`${id}-mismatch`} className="text-severity-critical">{t("backup.passwordMismatch", { defaultValue: "The passwords do not match." })}</p>}
           <p className="flex gap-1.5 text-muted">
             <Lock size={12} className="shrink-0 mt-0.5" aria-hidden="true" />
             {t("backup.noRecovery", { defaultValue: "The password cannot be recovered. Without it the backup cannot be opened." })}

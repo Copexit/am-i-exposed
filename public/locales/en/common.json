@@ -2472,7 +2472,6 @@
   "workspace.import": "Import",
   "workspace.importError": "Import failed. Invalid file format.",
   "workspace.itemCount": "{{bookmarks}} and {{graphs}} saved",
-  "workspace.noData": "No data to export.",
   "workspace.storageFull": "Browser storage is full. Delete some bookmarks or saved graphs and try again.",
   "workspace.title": "Workspace",
   "graph.autoTrace.change-detected": "change output identified",
@@ -3723,5 +3722,7 @@
   "backup.restored": "Restored {{bookmarks}} and {{graphs}}.",
   "backup.restoredSavedWallets_one": "{{count}} saved wallet scan restored.",
   "backup.restoredSavedWallets_other": "{{count}} saved wallet scans restored.",
-  "backup.settingsReload": "Reload the page to apply the restored settings."
+  "backup.settingsReload": "Reload the page to apply the restored settings.",
+  "backup.useCustomApi": "Use custom server: {{host}}",
+  "backup.restoreFailed": "The restore failed. Try again."
 }

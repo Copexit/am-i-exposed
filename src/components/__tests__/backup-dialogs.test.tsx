@@ -51,6 +51,17 @@ describe("backup import", () => {
     expect(bookmarkStore.getSnapshot()[0]!.input).toBe(TXID);
   });
 
+  it("shows the custom API host with its own checkbox, off by default", async () => {
+    const onDone = vi.fn();
+    render(<BackupImportDialog file={{ version: 2, createdAt: 0, bookmarks: [], graphs: [], settings: { "ami-custom-api-url": "https://evil.example/api" } }} onDone={onDone} onCancel={vi.fn()} />);
+    const box = screen.getByTestId("backup-restore-custom-api") as HTMLInputElement;
+    expect(box.checked).toBe(false);
+    expect(screen.getByText("Use custom server: evil.example")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("backup-import-submit"));
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
+    expect(localStorage.getItem("ami-custom-api-url")).toBeNull();
+  });
+
   it("a version 1 workspace file still imports through importBookmarks", async () => {
     const { container } = render(<WorkspaceSettingsPanel />);
     const file = new File([JSON.stringify({ version: 1, bookmarks: [bookmark], graphs: [] })], "w.json", { type: "application/json" });

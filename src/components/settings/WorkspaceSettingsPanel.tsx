@@ -34,13 +34,11 @@ export function WorkspaceSettingsPanel() {
   }, []);
 
   const handleExport = useCallback(() => {
-    if (bookmarks.length === 0 && graphs.length === 0) {
-      showToast("error", t("workspace.noData", { defaultValue: "No data to export." }));
-      return;
-    }
+    // No "nothing to export" guard: saved wallet scans and settings alone are worth a backup
     setPendingBackup(null);
+    setPendingImport(null);
     setExportPrompt(true);
-  }, [bookmarks, graphs, showToast, t]);
+  }, []);
 
   const storageFull = useCallback(() => showToast("error", t("workspace.storageFull", { defaultValue: "Browser storage is full. Delete some bookmarks or saved graphs and try again." })), [showToast, t]);
 
@@ -73,6 +71,8 @@ export function WorkspaceSettingsPanel() {
       let parsed: unknown = null;
       try { parsed = JSON.parse(json); } catch { /* reported by importBookmarks */ }
       setExportPrompt(false);
+      setPendingImport(null);
+      setPendingBackup(null);
       if (isSealedEnvelope(parsed) || parseBackup(parsed)) {
         setPendingBackup(parsed);
         return;

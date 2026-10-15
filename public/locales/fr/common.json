@@ -2474,7 +2474,6 @@
   "workspace.import": "Importer",
   "workspace.importError": "Échec de l'importation. Format de fichier invalide.",
   "workspace.itemCount": "{{bookmarks}} et {{graphs}} enregistrés",
-  "workspace.noData": "Aucune donnée à exporter.",
   "workspace.storageFull": "Le stockage du navigateur est plein. Supprimez des favoris ou des graphes enregistrés, puis réessayez.",
   "workspace.title": "Espace de travail",
   "graph.autoTrace.change-detected": "sortie de change identifiée",
@@ -3729,5 +3728,7 @@
   "backup.restored": "{{bookmarks}} et {{graphs}} restaurés.",
   "backup.restoredSavedWallets_one": "{{count}} analyse de portefeuille enregistrée restaurée.",
   "backup.restoredSavedWallets_other": "{{count}} analyses de portefeuille enregistrées restaurées.",
-  "backup.settingsReload": "Rechargez la page pour appliquer les paramètres restaurés."
+  "backup.settingsReload": "Rechargez la page pour appliquer les paramètres restaurés.",
+  "backup.useCustomApi": "Utiliser le serveur personnalisé : {{host}}",
+  "backup.restoreFailed": "La restauration a échoué. Réessayez."
 }

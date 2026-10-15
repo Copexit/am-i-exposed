@@ -2474,7 +2474,6 @@
   "workspace.import": "Importar",
   "workspace.importError": "Error de importación. Formato de archivo inválido.",
   "workspace.itemCount": "{{bookmarks}} y {{graphs}} guardados",
-  "workspace.noData": "No hay datos para exportar.",
   "workspace.storageFull": "El almacenamiento del navegador está lleno. Elimina algunos marcadores o grafos guardados y vuelve a intentarlo.",
   "workspace.title": "Espacio de trabajo",
   "graph.autoTrace.change-detected": "salida de cambio identificada",
@@ -3729,5 +3728,7 @@
   "backup.restored": "Se restauraron {{bookmarks}} y {{graphs}}.",
   "backup.restoredSavedWallets_one": "{{count}} escaneo de billetera guardado restaurado.",
   "backup.restoredSavedWallets_other": "{{count}} escaneos de billetera guardados restaurados.",
-  "backup.settingsReload": "Recarga la página para aplicar la configuración restaurada."
+  "backup.settingsReload": "Recarga la página para aplicar la configuración restaurada.",
+  "backup.useCustomApi": "Usar servidor personalizado: {{host}}",
+  "backup.restoreFailed": "La restauración falló. Inténtalo de nuevo."
 }

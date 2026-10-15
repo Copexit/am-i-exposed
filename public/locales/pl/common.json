@@ -2590,7 +2590,6 @@
   "workspace.import": "Importuj",
   "workspace.importError": "Import nie powiódł się. Nieprawidłowy format pliku.",
   "workspace.itemCount": "Zapisane zakładki: {{bookmarks}}, zapisane grafy: {{graphs}}",
-  "workspace.noData": "Brak danych do eksportu.",
   "workspace.storageFull": "Pamięć przeglądarki jest pełna. Usuń część zakładek lub zapisanych grafów i spróbuj ponownie.",
   "workspace.title": "Przestrzeń robocza",
   "graph.autoTrace.change-detected": "zidentyfikowano wyjście reszty",
@@ -3979,5 +3978,7 @@
   "backup.restoredSavedWallets_other": "Przywrócono zapisane skany portfeli: {{count}}.",
   "backup.restoredSavedWallets_few": "Przywrócono zapisane skany portfeli: {{count}}.",
   "backup.restoredSavedWallets_many": "Przywrócono zapisane skany portfeli: {{count}}.",
-  "backup.settingsReload": "Odśwież stronę, aby zastosować przywrócone ustawienia."
+  "backup.settingsReload": "Odśwież stronę, aby zastosować przywrócone ustawienia.",
+  "backup.useCustomApi": "Użyj własnego serwera: {{host}}",
+  "backup.restoreFailed": "Przywracanie nie powiodło się. Spróbuj ponownie."
 }

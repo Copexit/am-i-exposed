@@ -2472,7 +2472,6 @@
   "workspace.import": "Importieren",
   "workspace.importError": "Import fehlgeschlagen. Ungültiges Dateiformat.",
   "workspace.itemCount": "{{bookmarks}} und {{graphs}} gespeichert",
-  "workspace.noData": "Keine Daten zum Exportieren.",
   "workspace.storageFull": "Der Browserspeicher ist voll. Lösche einige Lesezeichen oder gespeicherte Graphen und versuche es erneut.",
   "workspace.title": "Arbeitsbereich",
   "graph.autoTrace.change-detected": "Wechselgeld-Output erkannt",
@@ -3723,5 +3722,7 @@
   "backup.restored": "{{bookmarks}} und {{graphs}} wiederhergestellt.",
   "backup.restoredSavedWallets_one": "{{count}} gespeicherter Wallet-Scan wiederhergestellt.",
   "backup.restoredSavedWallets_other": "{{count}} gespeicherte Wallet-Scans wiederhergestellt.",
-  "backup.settingsReload": "Lade die Seite neu, um die wiederhergestellten Einstellungen anzuwenden."
+  "backup.settingsReload": "Lade die Seite neu, um die wiederhergestellten Einstellungen anzuwenden.",
+  "backup.useCustomApi": "Eigenen Server verwenden: {{host}}",
+  "backup.restoreFailed": "Die Wiederherstellung ist fehlgeschlagen. Versuche es erneut."
 }

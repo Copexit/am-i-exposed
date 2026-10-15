@@ -42,7 +42,7 @@ describe("full backup", () => {
 
     const payload = parseBackup(JSON.parse(JSON.stringify(await buildBackup(ALL))));
     expect(payload).not.toBeNull();
-    expect(summarizeBackup(payload!)).toEqual({ bookmarks: 1, wallets: 1, graphs: 1, savedWallets: 1, settings: 2 });
+    expect(summarizeBackup(payload!)).toEqual({ bookmarks: 1, wallets: 1, graphs: 1, savedWallets: 1, settings: 2, customApiHost: null });
 
     localStorage.clear();
     bookmarkStore.remove();
@@ -101,6 +101,27 @@ describe("full backup", () => {
   it("does not take v1 or legacy files (they go through importBookmarks)", () => {
     expect(parseBackup({ version: 1, bookmarks: [], graphs: [] })).toBeNull();
     expect(parseBackup([txBookmark(1)])).toBeNull();
+  });
+
+  it("restores the custom API URL only with its own opt-in, validated", async () => {
+    const p = { version: 2 as const, createdAt: 0, bookmarks: [], graphs: [], settings: { "ami-custom-api-url": "https://node.example:3006/api/", "ami-theme": "dark" } };
+    expect(summarizeBackup(p)).toMatchObject({ settings: 1, customApiHost: "node.example:3006" });
+    expect(await restoreBackup(p, ALL)).toMatchObject({ settings: 1 });
+    expect(localStorage.getItem("ami-custom-api-url")).toBeNull();
+    await restoreBackup(p, { ...ALL, includeSettings: false, includeCustomApi: true });
+    expect(localStorage.getItem("ami-custom-api-url")).toBe("https://node.example:3006/api");
+    localStorage.clear();
+    const bad = { ...p, settings: { "ami-custom-api-url": "javascript:alert(1)" } };
+    expect(summarizeBackup(bad).customApiHost).toBeNull();
+    await restoreBackup(bad, { ...ALL, includeCustomApi: true });
+    expect(localStorage.getItem("ami-custom-api-url")).toBeNull();
+  });
+
+  it("sanitizes restored analysis settings", async () => {
+    const hostile = JSON.stringify({ walletGapLimit: 1e9, maxDepth: -3, timeout: "x", enableCache: "false", extra: 1 });
+    await restoreBackup({ version: 2, createdAt: 0, bookmarks: [], graphs: [], settings: { "analysis-settings": hostile } }, ALL);
+    expect(getAnalysisSettings()).toEqual({ ...DEFAULT_ANALYSIS_SETTINGS, walletGapLimit: 1000, maxDepth: 1 });
+    expect(JSON.parse(localStorage.getItem("analysis-settings")!)).not.toHaveProperty("extra");
   });
 
   it("ignores unknown settings keys", async () => {

@@ -22,11 +22,12 @@ export function BackupImportDialog({ file, onDone, onCancel }: {
   const id = useId();
   const [payload, setPayload] = useState<BackupPayload | null>(() => (isSealedEnvelope(file) ? null : parseBackup(file)));
   const [pw, setPw] = useState("");
-  const [error, setError] = useState<"wrong" | "invalid" | null>(null);
+  const [error, setError] = useState<"wrong" | "invalid" | "failed" | null>(null);
   const [busy, setBusy] = useState(false);
   const [wallets, setWallets] = useState(false);
   const [saved, setSaved] = useState(true);
   const [settings, setSettings] = useState(false);
+  const [customApi, setCustomApi] = useState(false);
   const cacheOn = getAnalysisSettings().enableCache;
 
   const unlock = async () => {
@@ -47,9 +48,9 @@ export function BackupImportDialog({ file, onDone, onCancel }: {
     if (!payload || busy) return;
     setBusy(true);
     try {
-      onDone(await restoreBackup(payload, { includeWallets: wallets, includeSavedWallets: saved && cacheOn, includeSettings: settings }));
+      onDone(await restoreBackup(payload, { includeWallets: wallets, includeSavedWallets: saved && cacheOn, includeSettings: settings, includeCustomApi: customApi }));
     } catch {
-      setError("invalid");
+      setError("failed");
       setBusy(false);
     }
   };
@@ -88,6 +89,7 @@ export function BackupImportDialog({ file, onDone, onCancel }: {
       <p id={`${id}-err`} role="alert" className="text-severity-critical empty:hidden">
         {error === "wrong" && t("backup.wrongPassword", { defaultValue: "Wrong password. Try again." })}
         {error === "invalid" && t("backup.invalidFile", { defaultValue: "This file is damaged or not a backup." })}
+        {error === "failed" && t("backup.restoreFailed", { defaultValue: "The restore failed. Try again." })}
       </p>
 
       {s && (
@@ -118,6 +120,7 @@ export function BackupImportDialog({ file, onDone, onCancel }: {
             </>
           )}
           {s.settings > 0 && check(settings, setSettings, t("backup.restoreSettings", { defaultValue: "Also restore settings" }), "backup-restore-settings")}
+          {s.customApiHost && check(customApi, setCustomApi, t("backup.useCustomApi", { host: s.customApiHost, defaultValue: "Use custom server: {{host}}" }), "backup-restore-custom-api")}
         </>
       )}
 
