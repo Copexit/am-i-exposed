@@ -78,6 +78,7 @@ type GraphExplorerAction =
   | { type: "SET_EDGE_LABEL"; key: string; label: string }
   | { type: "SET_NODE_LABELS"; labels: Map<string, string> }
   | { type: "SET_EDGE_LABELS"; labels: Map<string, string> }
+  | { type: "SET_LABELS"; nodeLabels: Map<string, string>; edgeLabels: Map<string, string> }
   | { type: "SET_VIEW_TRANSFORM"; vt: ViewTransform | undefined }
   | { type: "SET_EDGE_MODE"; mode: EdgeMode }
   | { type: "CYCLE_EDGE_MODE"; hasLinkability: boolean }
@@ -141,6 +142,8 @@ function graphExplorerReducer(state: GraphExplorerState, action: GraphExplorerAc
     }
     case "SET_NODE_LABELS":
       return { ...state, nodeLabels: action.labels };
+    case "SET_LABELS":
+      return { ...state, nodeLabels: action.nodeLabels, edgeLabels: action.edgeLabels };
     case "SET_EDGE_LABELS":
       return { ...state, edgeLabels: action.labels };
     case "SET_VIEW_TRANSFORM":
@@ -280,6 +283,10 @@ export function useGraphExplorerState(alwaysFullscreen?: boolean) {
     dispatch({ type: "SET_NODE_LABEL", txid, label });
   }, []);
 
+  const handleSetLabels = useCallback((nodeLabels: Map<string, string>, edgeLabels: Map<string, string>) => {
+    dispatch({ type: "SET_LABELS", nodeLabels, edgeLabels });
+  }, []);
+
   const handleSetEdgeLabel = useCallback((key: string, label: string) => {
     dispatch({ type: "SET_EDGE_LABEL", key, label });
   }, []);
@@ -330,6 +337,7 @@ export function useGraphExplorerState(alwaysFullscreen?: boolean) {
     handleNodePositionChange,
     handleSetNodeLabel,
     handleSetEdgeLabel,
+    handleSetLabels,
     handleToggleHeatMap,
     handleToggleFingerprint,
     handleLayoutComplete,

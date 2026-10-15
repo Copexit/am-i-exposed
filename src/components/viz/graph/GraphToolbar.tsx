@@ -53,6 +53,8 @@ interface GraphToolbarProps {
   annotations?: GraphAnnotation[];
   nodeLabels?: Map<string, string>;
   edgeLabels?: Map<string, string>;
+  /** Replaces both label maps in one update (BIP329 import). */
+  onSetLabels?: (nodeLabels: Map<string, string>, edgeLabels: Map<string, string>) => void;
   /** Opens the Find connection panel. */
   onFindConnection?: () => void;
   findConnectionOpen?: boolean;
@@ -348,6 +350,10 @@ export function GraphToolbar(props: GraphToolbarProps) {
           onLoadSavedGraph={onLoadSavedGraph}
           rootTxid={rootTxid}
           currentLabel={currentLabel}
+          nodes={nodes}
+          nodeLabels={props.nodeLabels}
+          edgeLabels={props.edgeLabels}
+          onSetLabels={props.onSetLabels}
         />
       )}
 

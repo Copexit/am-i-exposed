@@ -93,7 +93,7 @@ const isPlainObject = (v: unknown): v is Record<string, unknown> => typeof v ===
  * First MAX_LABEL_LENGTH UTF-16 units (Sparrow counts Java chars), never
  * splitting a surrogate pair.
  */
-function cut(s: string): string {
+export function cut(s: string): string {
   const head = s.slice(0, MAX_LABEL_LENGTH);
   const last = head.charCodeAt(head.length - 1);
   return last >= 0xd800 && last <= 0xdbff ? head.slice(0, -1) : head;

@@ -3,6 +3,8 @@
 import { X, Save, FolderOpen, Link2, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { truncateId } from "@/lib/constants";
+import { GraphLabelsIO } from "./GraphLabelsIO";
+import type { GraphNode } from "./types";
 import type { SavedGraph } from "@/lib/graph/saved-graph-types";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
 
@@ -32,6 +34,10 @@ interface SaveGraphPanelProps {
   onLoadSavedGraph?: (graph: SavedGraph) => void;
   rootTxid?: string;
   currentLabel?: string | null;
+  nodes?: Map<string, GraphNode>;
+  nodeLabels?: Map<string, string>;
+  edgeLabels?: Map<string, string>;
+  onSetLabels?: (nodeLabels: Map<string, string>, edgeLabels: Map<string, string>) => void;
 }
 
 export function SaveGraphPanel({
@@ -43,6 +49,7 @@ export function SaveGraphPanel({
   panelRef, timeAgo,
   isEmpty, currentGraphId, network, onLoadSavedGraph,
   rootTxid, currentLabel,
+  nodes, nodeLabels, edgeLabels, onSetLabels,
 }: SaveGraphPanelProps) {
   const { t } = useTranslation();
 
@@ -116,6 +123,15 @@ export function SaveGraphPanel({
                 </button>
               )}
             </div>
+            {nodes && rootTxid && onSetLabels && (
+              <GraphLabelsIO
+                nodes={nodes}
+                rootTxid={rootTxid}
+                nodeLabels={nodeLabels ?? new Map()}
+                edgeLabels={edgeLabels ?? new Map()}
+                onSetLabels={onSetLabels}
+              />
+            )}
           </div>
         )}
 

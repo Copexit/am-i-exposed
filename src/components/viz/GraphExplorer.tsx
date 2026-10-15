@@ -46,7 +46,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
   // ─── Reducer state ──────────────────────────────────────
   const {
     state, dispatch, userToggledRef, toggleChange,
-    handleNodePositionChange, handleSetNodeLabel, handleSetEdgeLabel,
+    handleNodePositionChange, handleSetNodeLabel, handleSetEdgeLabel, handleSetLabels,
     handleToggleHeatMap, handleToggleFingerprint,
     handleLayoutComplete, handleFullscreenExit,
     restoreSavedGraph, restoreFromLastLoaded,
@@ -339,7 +339,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
     onLoadSavedGraph: onLoadSavedGraph ? handleLoadSavedGraph : undefined,
     onRegisterHandlers: (handlers: Record<string, () => void>) => { tbHandlersRef.current = handlers; },
     annotateMode, onToggleAnnotateMode: () => dispatch({ type: "TOGGLE_ANNOTATE_MODE" }),
-    nodePositionOverrides, annotations, nodeLabels, edgeLabels,
+    nodePositionOverrides, annotations, nodeLabels, edgeLabels, onSetLabels: handleSetLabels,
     onFindConnection: graph.fetcher ? () => (connection ? closeConnection() : openConnection()) : undefined,
     findConnectionOpen: !!connection,
   };

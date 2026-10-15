@@ -193,6 +193,45 @@ describe("wallet labels UI", () => {
   });
 });
 
+describe("labels panel: import conflicts", () => {
+  const paste = (text: string) => {
+    fireEvent.click(screen.getByRole("button", { name: "Paste" }));
+    fireEvent.change(screen.getByLabelText("BIP329 JSON Lines, one record per line"), { target: { value: text } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply labels" }));
+  };
+  const other = `{"type":"tx","ref":"${change.txid}","label":"rent April"}`;
+
+  it("keeps the existing label by default and applies nothing when cancelled", () => {
+    render(<Harness />);
+    paste(LINES);
+    paste(other);
+    expect(screen.getByTestId("labels-preview")).toBeTruthy();
+    expect(within(screen.getByTestId("labels-conflicts")).getByText("rent March")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Apply import" }));
+    expect(within(screen.getByTestId("finding-tx-refs")).getByText("rent March")).toBeTruthy();
+    paste(other);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByTestId("labels-preview")).toBeNull();
+    expect(within(screen.getByTestId("finding-tx-refs")).getByText("rent March")).toBeTruthy();
+  });
+
+  it("replaces with the incoming label when ticked (use all incoming)", () => {
+    render(<Harness />);
+    paste(LINES);
+    paste(other);
+    fireEvent.click(screen.getByLabelText("Use all incoming"));
+    fireEvent.click(screen.getByRole("button", { name: "Apply import" }));
+    expect(within(screen.getByTestId("finding-tx-refs")).getByText("rent April")).toBeTruthy();
+  });
+
+  it("applies directly when nothing conflicts or differs", () => {
+    render(<Harness />);
+    paste(LINES);
+    paste(`{"type":"tx","ref":"${change.txid}","label":"rent March"}`);
+    expect(screen.queryByTestId("labels-preview")).toBeNull();
+  });
+});
+
 describe("labels panel: summary, wallet origin, grouping", () => {
   it("says only the positive counts when nothing is for another wallet or invalid", () => {
     render(<Harness />);

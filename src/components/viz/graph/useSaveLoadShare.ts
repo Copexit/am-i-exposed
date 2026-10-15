@@ -48,6 +48,8 @@ export function useSaveLoadShare(args: UseSaveLoadShareArgs) {
   useEffect(() => {
     if (!activePanel) return;
     const handler = (e: MouseEvent) => {
+      // The label import preview is a portal: a click in it is not an outside click
+      if ((e.target as Element).closest?.("[data-labels-preview]")) return;
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
         setActivePanel(null);
         setConfirmDeleteId(null);

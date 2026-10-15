@@ -134,3 +134,53 @@ for (const width of [1440, 390]) {
     await shot(page, section, `${SHOTS}/wb-guide-${width}.png`);
   });
 }
+
+for (const width of [1440, 390]) {
+  test(`labels at ${width}px: a clashing import is previewed, existing labels kept unless chosen`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`/#xpub=${ZPUB}`);
+    await expect(page.getByText("Wallet Privacy Audit")).toBeVisible({ timeout: 20_000 });
+    await page.getByRole("button", { name: /Labels \(BIP329\)/ }).click();
+    const panel = page.getByTestId("labels-panel");
+    const file = (text: string) => ({ name: "labels.jsonl", mimeType: "application/jsonl", buffer: Buffer.from(text) });
+    // Sixty more labels, so the clash list below is long enough to scroll
+    const rows = (word: string) => Array.from({ length: 60 }, (_, i) => `{"type":"output","ref":"${txid(50 + i)}:0","label":"[KYC] ${word} ${i}"}`);
+    await panel.locator("input[type=file]").setInputFiles(file([LABELS, ...rows("first")].join("\n")));
+    await expect(panel.getByTestId("labels-summary")).toContainText("73 labels read");
+
+    // Same refs, new labels, plus one new record
+    const clash = rows("second");
+    const next = [`{"type":"output","ref":"${txid(10)}:1","label":"[noKYC] changed"}`, `{"type":"output","ref":"${txid(2)}:1","label":"[noKYC] savings"}`, `{"type":"output","ref":"${txid(40)}:0","label":"brand new"}`, ...clash].join("\n");
+    await panel.locator("input[type=file]").setInputFiles(file(next));
+    const preview = page.getByTestId("labels-preview");
+    await expect(preview).toBeVisible();
+    await expect(preview).toContainText("1 new");
+    await expect(preview).toContainText("1 unchanged");
+    await expect(preview).toContainText("61 conflicts");
+    const box = page.getByTestId("labels-conflicts");
+    expect(await box.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+    const { sw, iw } = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }));
+    expect(sw).toBeLessThanOrEqual(iw);
+    await page.screenshot({ path: `${SHOTS}/conflict-preview-${width}.png` });
+
+    // Default keeps the existing labels: the export still has the imported one
+    await preview.getByRole("button", { name: "Apply import" }).click();
+    await expect(preview).toHaveCount(0);
+    const exported = async () => {
+      const [d] = await Promise.all([page.waitForEvent("download"), page.getByTestId("labels-export").click()]);
+      return readFileSync((await d.path())!, "utf8");
+    };
+    let text = await exported();
+    expect(text).toContain("[KYC] Bitstamp \u00b7 withdrawal");
+    expect(text).not.toContain("[noKYC] changed");
+    expect(text).toContain("brand new");
+
+    // Use all incoming replaces
+    await panel.locator("input[type=file]").setInputFiles(file(next));
+    await page.getByTestId("labels-preview").getByLabel("Use all incoming").check();
+    await page.getByRole("button", { name: "Apply import" }).click();
+    text = await exported();
+    expect(text).toContain("[noKYC] changed");
+    expect(text).not.toContain("[KYC] Bitstamp \u00b7 withdrawal");
+  });
+}
