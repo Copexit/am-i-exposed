@@ -35,9 +35,22 @@ export interface ConnectionSearchState {
   summary: SearchSummary | null;
   /** Set when an address endpoint could not be resolved (request failed or no history). */
   resolveError: "failed" | "empty" | null;
+  /** The To address history could not be loaded, so only txs paying or spending it on A's paths were matched. */
+  addressFallback: boolean;
 }
 
-const IDLE: ConnectionSearchState = { status: "idle", results: [], progress: null, summary: null, resolveError: null };
+const IDLE: ConnectionSearchState = { status: "idle", results: [], progress: null, summary: null, resolveError: null, addressFallback: false };
+
+/**
+ * Address history can be slow or refused on a self-hosted mempool with an Electrum backend
+ * (busy addresses), and its request takes no signal, so it gets its own short cap.
+ */
+const RESOLVE_TIMEOUT_MS = 15_000;
+
+/** Pays or spends `address`. */
+const touchesAddress = (address: string) => (tx: MempoolTransaction) =>
+  tx.vout.some((o) => o.scriptpubkey_address === address) ||
+  tx.vin.some((v) => v.prevout?.scriptpubkey_address === address);
 
 /**
  * Runs findConnections through the graph's fetcher (response cache + retry).
@@ -67,8 +80,12 @@ export function useConnectionSearch(fetcher: GraphExpansionFetcher | null) {
       if (e.kind === "txid") return [e.value];
       if (!fetcher.getAddressTxs) return "failed";
       try {
-        // First page of history only. The client takes no signal here: an abort drops the result below.
-        const list = await fetcher.getAddressTxs(e.value, 1);
+        // First page of history only. The client takes no signal here: an abort or timeout drops the result.
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const list = await Promise.race([
+          fetcher.getAddressTxs(e.value, 1),
+          new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("timeout")), Math.min(RESOLVE_TIMEOUT_MS, options.timeoutMs)); }),
+        ]).finally(() => clearTimeout(timer));
         for (const tx of list) seen.set(tx.txid, tx);
         return list.map((tx) => tx.txid);
       } catch {
@@ -81,11 +98,13 @@ export function useConnectionSearch(fetcher: GraphExpansionFetcher | null) {
       setState({ ...IDLE, status: "done", summary: { txsFetched: 0, stoppedBy: "aborted", branchLimited: 0, coinJoinStops: 0, fetchErrors: 0 } });
       return;
     }
-    if (a === "failed" || b === "failed" || a.length === 0 || b.length === 0) {
-      const resolveError = a === "failed" || b === "failed" ? "failed" : "empty";
-      setState({ ...IDLE, status: "done", resolveError });
+    // Only an address fails to resolve; a To address is still found by matching the txs that pay or spend it
+    const addressFallback = b === "failed";
+    if (a === "failed" || a.length === 0 || (b !== "failed" && b.length === 0)) {
+      setState({ ...IDLE, status: "done", resolveError: a === "failed" ? "failed" : "empty" });
       return;
     }
+    if (addressFallback) setState((s) => ({ ...s, addressFallback }));
 
     const recording: GraphExpansionFetcher = {
       getTransaction: async (txid) => {
@@ -95,7 +114,7 @@ export function useConnectionSearch(fetcher: GraphExpansionFetcher | null) {
       },
       getTxOutspends: (txid) => fetcher.getTxOutspends(txid, signal),
     };
-    const summary = await findConnections(a, b, recording, options, {
+    const summary = await findConnections(a, b === "failed" ? [] : b, recording, options, {
       onResult: (path) => {
         if (signal.aborted) return;
         setTxs(new Map(seen));
@@ -105,6 +124,7 @@ export function useConnectionSearch(fetcher: GraphExpansionFetcher | null) {
         if (!signal.aborted) setState((s) => ({ ...s, progress }));
       },
       isCoinJoin: isCoinJoinTx,
+      matchTo: to.kind === "address" ? touchesAddress(to.value) : undefined,
     }, signal);
     // A newer search replaced this one; a cancel still reports its summary
     if (abortRef.current !== ac) return;

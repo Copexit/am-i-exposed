@@ -97,6 +97,8 @@ export async function findConnections(
     onResult(path: ConnectionPath): void;
     onProgress?(p: ConnectionProgress): void;
     isCoinJoin(tx: MempoolTransaction): boolean;
+    /** Marks a tx reached from A as a B endpoint (e.g. it pays or spends the target address). Lets B be found without B seeds. */
+    matchTo?(tx: MempoolTransaction): boolean;
   },
   signal?: AbortSignal,
 ): Promise<SearchSummary> {
@@ -155,7 +157,7 @@ export async function findConnections(
     txsFetched, stoppedBy, branchLimited: branchLimited.size, coinJoinStops: coinJoins.size, fetchErrors,
   });
 
-  if (from.length === 0 || to.length === 0) return summary("done");
+  if (from.length === 0 || (to.length === 0 && !callbacks.matchTo)) return summary("done");
 
   // Seeds first; they count toward the budget
   await pool([...from, ...to], fetchTx);
@@ -273,6 +275,16 @@ export async function findConnections(
 
   async function expand(side: Side): Promise<void> {
     await pool(side.frontier, fetchTx);
+    if (callbacks.matchTo && (side === fA || side === bA)) {
+      // A matched tx joins B as a seed for meets only; B never expands from it, and links B already has stay
+      for (const t of side.frontier) {
+        const tx = txs.get(t);
+        if (!tx || !callbacks.matchTo(tx)) continue;
+        if (!fB.reached.has(t)) fB.reached.set(t, { from: null });
+        if (!bB.reached.has(t)) bB.reached.set(t, { from: null });
+        findMeets(t);
+      }
+    }
     const expandable = side.frontier.filter((t) => {
       const tx = txs.get(t);
       if (!tx) return false;

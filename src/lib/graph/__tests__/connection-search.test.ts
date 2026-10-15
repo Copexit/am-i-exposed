@@ -62,12 +62,14 @@ async function run(
   to: string[],
   opts: Partial<ConnectionSearchOptions> = {},
   coinJoins: string[] = [],
+  matchTo?: string[],
 ) {
   const { fetcher, stats } = chain(spec);
   const results: ConnectionPath[] = [];
   const summary = await findConnections(from, to, fetcher, { ...DEFAULT_CONNECTION_OPTIONS, ...opts }, {
     onResult: (p) => results.push(p),
     isCoinJoin: (tx) => coinJoins.includes(tx.txid),
+    matchTo: matchTo && ((tx) => matchTo.includes(tx.txid)),
   });
   return { results, summary, stats };
 }
@@ -117,6 +119,23 @@ describe("findConnections", () => {
       ],
       meetTxid: expect.any(String),
     }]);
+  });
+
+  it("finds B through matchTo alone when B has no seeds (an address without history)", async () => {
+    const fwd: Spec = { A: { outs: 2 }, X: { ins: ["A:1"] }, Y: { ins: ["X:0"] }, P: { ins: ["Y:0"] } };
+    const ahead = await run(fwd, ["A"], [], {}, [], ["P"]);
+    expect(ahead.results.map((r) => [r.kind, ...ids(r)])).toEqual([["a-funds-b", "A", "X", "Y", "P"]]);
+    const back: Spec = { P: {}, X: { ins: ["P:0"] }, A: { ins: ["X:0"] } };
+    const behind = await run(back, ["A"], [], {}, [], ["P"]);
+    expect(behind.results.map((r) => [r.kind, ...ids(r)])).toEqual([["b-funds-a", "P", "X", "A"]]);
+  });
+
+  it("keeps B's own links when a matched tx is also on B's chain", async () => {
+    const spec: Spec = { A: { outs: 1 }, X: { ins: ["A:0"] }, Y: { ins: ["X:0"] }, B: { ins: ["Y:0"] } };
+    const { results } = await run(spec, ["A"], ["B"], {}, [], ["X"]);
+    expect(results.map((r) => [r.kind, ...ids(r)])).toEqual(
+      expect.arrayContaining([["direct", "A", "X"], ["a-funds-b", "A", "X", "Y", "B"]]),
+    );
   });
 
   it("finds a path where B funds A, ordered from B to A", async () => {

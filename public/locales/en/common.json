@@ -1117,6 +1117,7 @@
   "graph.connection.progress": "{{fetched}}/{{max}} transactions, hops {{hopsA}} + {{hopsB}}, {{seconds}} s",
   "graph.connection.resolveFailed": "The address history could not be loaded.",
   "graph.connection.resolveEmpty": "The address has no transactions.",
+  "graph.connection.addressFallback": "The address history could not be loaded from this server, so only transactions that pay or spend the address along the way were matched.",
   "graph.connection.stopDone": "Every branch was followed to its end.",
   "graph.connection.stopAborted": "Search cancelled.",
   "graph.connection.stopHops_one": "Stopped at {{count}} hop per side.",

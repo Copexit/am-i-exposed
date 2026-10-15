@@ -1117,6 +1117,7 @@
   "graph.connection.progress": "{{fetched}}/{{max}} transactions, sauts {{hopsA}} + {{hopsB}}, {{seconds}} s",
   "graph.connection.resolveFailed": "L'historique de l'adresse n'a pas pu être chargé.",
   "graph.connection.resolveEmpty": "L'adresse n'a aucune transaction.",
+  "graph.connection.addressFallback": "L'historique de l'adresse n'a pas pu être chargé depuis ce serveur, seules les transactions du chemin qui paient l'adresse ou dépensent depuis elle ont donc été recherchées.",
   "graph.connection.stopDone": "Chaque branche a été suivie jusqu'au bout.",
   "graph.connection.stopAborted": "Recherche annulée.",
   "graph.connection.stopHops_one": "Arrêt à {{count}} saut par côté.",

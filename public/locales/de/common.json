@@ -1117,6 +1117,7 @@
   "graph.connection.progress": "{{fetched}}/{{max}} Transaktionen, Sprünge {{hopsA}} + {{hopsB}}, {{seconds}} s",
   "graph.connection.resolveFailed": "Der Adressverlauf konnte nicht geladen werden.",
   "graph.connection.resolveEmpty": "Die Adresse hat keine Transaktionen.",
+  "graph.connection.addressFallback": "Der Adressverlauf konnte von diesem Server nicht geladen werden, daher wurden nur Transaktionen auf dem Weg gesucht, die an die Adresse zahlen oder von ihr ausgeben.",
   "graph.connection.stopDone": "Jeder Zweig wurde bis zu seinem Ende verfolgt.",
   "graph.connection.stopAborted": "Suche abgebrochen.",
   "graph.connection.stopHops_one": "Bei {{count}} Sprung pro Seite angehalten.",
