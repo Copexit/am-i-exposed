@@ -7,6 +7,7 @@ import { savedGraphStore } from "./useSavedGraphs";
 import { validateSavedGraph } from "@/lib/graph/saved-graph-types";
 import type { SavedGraph } from "@/lib/graph/saved-graph-types";
 import { parseXpub } from "@/lib/bitcoin/descriptor";
+import { downloadJson } from "@/lib/download";
 
 export interface Bookmark {
   /** txid, address, or (type "wallet") the raw xpub/descriptor, stored only after an explicit opt-in */
@@ -49,7 +50,7 @@ function isValidBookmark(b: unknown): b is Bookmark {
   );
 }
 
-const store = createLocalStorageStore<Bookmark[]>(
+export const bookmarkStore = createLocalStorageStore<Bookmark[]>(
   "bookmarks",
   [],
   (raw) => {
@@ -57,6 +58,7 @@ const store = createLocalStorageStore<Bookmark[]>(
     return Array.isArray(parsed) ? parsed.filter(isValidBookmark) : [];
   },
 );
+const store = bookmarkStore;
 
 /** Valid wallet entries in a list (they carry raw keys). */
 const countWallets = (items: unknown[]) => items.filter((b) => isValidBookmark(b) && b.type === "wallet").length;
@@ -73,7 +75,7 @@ export function walletsInImport(json: string): number {
 }
 
 /** Merge entries into storage. Returns the count merged, or null when the write failed. */
-function mergeBookmarks(items: unknown[], includeWallets: boolean): number | null {
+export function mergeBookmarks(items: unknown[], includeWallets: boolean): number | null {
   // Labels are capped as when typed (40 characters); wallet keys only after a confirmation
   const valid = items.filter(isValidBookmark).filter((b) => includeWallets || b.type !== "wallet").map((b) => (typeof b.label === "string" ? { ...b, label: b.label.slice(0, 40) } : { ...b, label: undefined }));
   if (valid.length === 0) return 0;
@@ -92,7 +94,7 @@ function mergeBookmarks(items: unknown[], includeWallets: boolean): number | nul
 }
 
 /** Merge entries into storage. Returns the count merged, or null when the write failed. */
-function mergeGraphs(items: unknown[]): number | null {
+export function mergeGraphs(items: unknown[]): number | null {
   const valid = items.filter(validateSavedGraph) as SavedGraph[];
   if (valid.length === 0) return 0;
   const existing = savedGraphStore.getSnapshot();
@@ -162,14 +164,7 @@ export function useBookmarks() {
     const bookmarkData = store.getSnapshot().filter((b) => includeWallets || b.type !== "wallet");
     const graphData = savedGraphStore.getSnapshot();
     const workspace = { version: 1, bookmarks: bookmarkData, graphs: graphData };
-    const json = JSON.stringify(workspace, null, 2);
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "am-i-exposed-workspace.json";
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadJson("am-i-exposed-workspace.json", JSON.stringify(workspace, null, 2));
   }, []);
 
   /**

@@ -17,6 +17,14 @@ describe("envelope", () => {
     await expect(openJson(env, "nope")).rejects.toBeInstanceOf(WrongPasswordError);
   });
 
+  it("an NFD-typed password opens a file sealed with its NFC form", async () => {
+    const nfc = "contrase\u00f1a-caf\u00e9";
+    const nfd = nfc.normalize("NFD");
+    expect(nfd).not.toBe(nfc);
+    const env = await sealJson({ a: 1 }, nfc, OPTS);
+    expect(await openJson(env, nfd)).toEqual({ a: 1 });
+  });
+
   it("tampered ct throws", async () => {
     const env = await sealJson({ a: 1 }, "pw", OPTS);
     const bytes = atob(env.ct).split("");

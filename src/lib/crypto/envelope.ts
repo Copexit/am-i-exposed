@@ -55,13 +55,14 @@ async function pipe(
   data: Uint8Array<ArrayBuffer>,
   stream: CompressionStream | DecompressionStream,
 ): Promise<Uint8Array<ArrayBuffer>> {
-  const out = new Blob([data]).stream().pipeThrough(stream);
+  const out = new Response(data).body!.pipeThrough(stream);
   return new Uint8Array(await new Response(out).arrayBuffer());
 }
 
 async function deriveKey(password: string, salt: Uint8Array<ArrayBuffer>, iterations: number): Promise<CryptoKey> {
   const subtle = globalThis.crypto.subtle;
-  const base = await subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
+  // NFC: the same password typed on another OS (which may compose accents differently) opens the file
+  const base = await subtle.importKey("raw", new TextEncoder().encode(password.normalize("NFC")), "PBKDF2", false, ["deriveKey"]);
   return subtle.deriveKey(
     { name: "PBKDF2", hash: "SHA-256", salt, iterations },
     base,

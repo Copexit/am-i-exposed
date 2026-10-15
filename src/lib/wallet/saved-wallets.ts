@@ -298,6 +298,88 @@ export async function saveSnapshot(key: string, xpub: string, backend: string, s
   return !stale;
 }
 
+/** A saved wallet as carried in a backup: its list entry and the stored snapshot JSON (no raw key inside). */
+export interface SavedWalletEntry {
+  meta: SavedWalletMeta;
+  json: string;
+}
+
+function isSavedWalletEntry(e: unknown): e is SavedWalletEntry {
+  if (typeof e !== "object" || e === null) return false;
+  const { meta, json } = e as Partial<SavedWalletEntry>;
+  if (typeof json !== "string" || json.length > MAX_SNAPSHOT_BYTES || typeof meta !== "object" || meta === null) return false;
+  if (!/^[0-9a-f]{64}$/.test(String(meta.key)) || typeof meta.scriptType !== "string" || typeof meta.backend !== "string" || typeof meta.scannedAt !== "number") return false;
+  try {
+    const parsed: unknown = JSON.parse(json);
+    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed);
+  } catch {
+    return false;
+  }
+}
+
+/** Every saved wallet with its snapshot, for a backup. Empty while the cache setting is off. */
+export async function exportSavedWallets(): Promise<SavedWalletEntry[]> {
+  if (!enabled()) return [];
+  try {
+    const [metas, rows] = await Promise.all([
+      listSavedWallets(),
+      run<{ key: string; json: string }[]>(["data"], "readonly", tx => tx.objectStore("data").getAll()),
+    ]);
+    const byKey = new Map(rows.map(r => [r.key, r.json]));
+    return metas.flatMap(meta => {
+      const json = byKey.get(meta.key);
+      return json === undefined ? [] : [{ meta, json }];
+    });
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Merge saved wallets from a backup: a missing key is added, an existing one
+ * keeps whichever snapshot was scanned later. The caps hold as in saveSnapshot
+ * (entries over the per-wallet cap are skipped, the least recently scanned are
+ * dropped past the total). Returns the count written; throws SavedWalletError
+ * ("quota") when the browser storage is full.
+ */
+export async function importSavedWallets(entries: unknown[]): Promise<number> {
+  if (!enabled()) return 0;
+  const existing = new Map((await listSavedWallets()).map(m => [m.key, m]));
+  const incoming = new Map<string, SavedWalletEntry>();
+  for (const e of entries.filter(isSavedWalletEntry)) {
+    const cur = existing.get(e.meta.key);
+    const dup = incoming.get(e.meta.key);
+    if ((!cur || e.meta.scannedAt > cur.scannedAt) && (!dup || e.meta.scannedAt > dup.meta.scannedAt)) incoming.set(e.meta.key, e);
+  }
+  if (incoming.size === 0) return 0;
+  const metas = new Map(existing);
+  for (const { meta, json } of incoming.values()) {
+    metas.set(meta.key, { key: meta.key, scriptType: meta.scriptType, backend: meta.backend, scannedAt: meta.scannedAt, size: json.length });
+  }
+  // Oldest first: drop them until the total fits
+  let total = [...metas.values()].reduce((n, m) => n + m.size, 0);
+  const evict = new Set<string>();
+  for (const m of [...metas.values()].sort((a, b) => a.scannedAt - b.scannedAt)) {
+    if (total <= MAX_TOTAL_BYTES) break;
+    evict.add(m.key);
+    total -= m.size;
+  }
+  const written = [...incoming.values()].filter(e => !evict.has(e.meta.key));
+  try {
+    await run(["meta", "data"], "readwrite", tx => {
+      for (const k of evict) { tx.objectStore("meta").delete(k); tx.objectStore("data").delete(k); }
+      for (const e of written) {
+        tx.objectStore("meta").put(metas.get(e.meta.key));
+        tx.objectStore("data").put({ key: e.meta.key, json: e.json });
+      }
+    });
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "QuotaExceededError") throw new SavedWalletError("quota");
+    throw e;
+  }
+  return written.length;
+}
+
 /** "Forget this wallet". */
 export async function forgetWallet(key: string): Promise<void> {
   announce({ type: "forget", key });
