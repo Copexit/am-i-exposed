@@ -271,6 +271,12 @@ export function ConnectionPanel(props: ConnectionPanelProps) {
           </p>
         )}
 
+        {search.addressFallback && (
+          <p className="text-[11px] text-severity-medium" role="status">
+            {t("graph.connection.addressFallback", { defaultValue: "The address history could not be loaded from this server, so only transactions that pay or spend the address along the way were matched." })}
+          </p>
+        )}
+
         {summary && (
           <div className="space-y-1 text-[11px] text-muted" role="status" data-testid="connection-summary">
             {groups.length === 0 && summary.stoppedBy !== "aborted" && (

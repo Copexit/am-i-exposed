@@ -1169,6 +1169,7 @@
   "graph.connection.progress": "{{fetched}}/{{max}} transakcji, przeskoki {{hopsA}} + {{hopsB}}, {{seconds}} s",
   "graph.connection.resolveFailed": "Nie udało się wczytać historii adresu.",
   "graph.connection.resolveEmpty": "Adres nie ma żadnych transakcji.",
+  "graph.connection.addressFallback": "Nie udało się wczytać historii adresu z tego serwera, więc wyszukano tylko transakcje na ścieżce, które płacą na ten adres lub wydają z niego.",
   "graph.connection.stopDone": "Każdą gałąź prześledzono do końca.",
   "graph.connection.stopAborted": "Wyszukiwanie anulowane.",
   "graph.connection.stopHops_one": "Zatrzymano na {{count}} przeskoku na stronę.",
