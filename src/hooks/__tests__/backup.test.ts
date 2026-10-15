@@ -51,7 +51,7 @@ describe("full backup", () => {
     await clearSavedWallets();
 
     const r = await restoreBackup(payload!, ALL);
-    expect(r).toEqual({ bookmarks: 2, graphs: 1, savedWallets: 1, settings: 2 });
+    expect(r).toEqual({ bookmarks: 2, graphs: 1, savedWallets: 1, settings: 2, skippedWallets: 0 });
     expect(bookmarkStore.getSnapshot().map((b) => b.input).sort()).toEqual([TXID, ZPUB].sort());
     expect(savedGraphStore.getSnapshot()[0]!.id).toBe("g1");
     expect((await listSavedWallets())[0]!.key).toBe(key);
@@ -92,7 +92,7 @@ describe("full backup", () => {
     bookmarkStore.remove();
     await clearSavedWallets();
     const r = await restoreBackup(full, none);
-    expect(r).toEqual({ bookmarks: 1, graphs: 0, savedWallets: 0, settings: 0 });
+    expect(r).toEqual({ bookmarks: 1, graphs: 0, savedWallets: 0, settings: 0, skippedWallets: 0 });
     expect(bookmarkStore.getSnapshot().some((b) => b.type === "wallet")).toBe(false);
     expect(await listSavedWallets()).toEqual([]);
     expect(localStorage.getItem("ami-theme")).toBeNull();

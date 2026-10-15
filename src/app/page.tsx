@@ -4,7 +4,7 @@ import { lazy, Suspense, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 import { useScanner } from "@/hooks/useScanner";
-import type { Bookmark } from "@/hooks/useBookmarks";
+import { matchesInput, type Bookmark } from "@/hooks/useBookmarks";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { XpubPrivacyWarning } from "@/components/wallet/XpubPrivacyWarning";
 import { Home } from "@/components/home/Home";
@@ -199,6 +199,6 @@ export default function ScannerPage() {
 
 /** The name ("" when unnamed) of the wallet bookmark for `input`, or undefined when it is not bookmarked. */
 function walletBookmarkName(bookmarks: Bookmark[], input: string): string | undefined {
-  const b = bookmarks.find((x) => x.type === "wallet" && x.input === input);
+  const b = bookmarks.find((x) => x.type === "wallet" && matchesInput(x, input));
   return b && (b.label ?? "");
 }

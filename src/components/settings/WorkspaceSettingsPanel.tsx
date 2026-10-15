@@ -11,6 +11,7 @@ import { isSealedEnvelope } from "@/lib/crypto/envelope";
 import { parseBackup, type RestoreResult } from "@/hooks/backup";
 import { BackupExportDialog } from "./BackupExportDialog";
 import { BackupImportDialog } from "./BackupImportDialog";
+import { WalletLockSettings, skippedMessage } from "./WalletLockSettings";
 import type { TFunction } from "i18next";
 
 const nBookmarks = (t: TFunction, count: number) => t("workspace.nBookmarks", { count, defaultValue: "{{count}} bookmarks" });
@@ -47,6 +48,7 @@ export function WorkspaceSettingsPanel() {
     if (r.error === "storage_full") return storageFull();
     const parts = [t("backup.restored", { bookmarks: nBookmarks(t, r.bookmarks), graphs: nGraphs(t, r.graphs), defaultValue: "Restored {{bookmarks}} and {{graphs}}." })];
     if (r.savedWallets > 0) parts.push(t("backup.restoredSavedWallets", { count: r.savedWallets, defaultValue: "{{count}} saved wallet scans restored." }));
+    if (r.skippedWallets > 0) parts.push(skippedMessage(t, r.skippedWallets));
     if (r.settings > 0) parts.push(t("backup.settingsReload", { defaultValue: "Reload the page to apply the restored settings." }));
     showToast("success", parts.join(" "));
   }, [showToast, storageFull, t]);
@@ -58,7 +60,8 @@ export function WorkspaceSettingsPanel() {
     } else if (result.error) {
       showToast("error", t("workspace.importError", { defaultValue: "Import failed. Invalid file format." }));
     } else {
-      showToast("success", t("workspace.imported", { count: result.imported, defaultValue: "Imported {{count}} scans." }));
+      const msg = t("workspace.imported", { count: result.imported, defaultValue: "Imported {{count}} scans." });
+      showToast("success", result.skippedWallets ? `${msg} ${skippedMessage(t, result.skippedWallets)}` : msg);
     }
   }, [importBookmarks, showToast, storageFull, t]);
 
@@ -144,6 +147,7 @@ export function WorkspaceSettingsPanel() {
           {toast.message}
         </p>
       )}
+      <WalletLockSettings />
     </div>
   );
 }

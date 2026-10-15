@@ -6,6 +6,8 @@ import { useTranslation } from "react-i18next";
 import { gradeColor, truncateId } from "@/lib/constants";
 import type { Bookmark } from "@/hooks/useBookmarks";
 import { RemoveWalletBookmarkPrompt } from "./RemoveWalletBookmarkPrompt";
+import { UnlockWalletsPrompt } from "./UnlockWalletsPrompt";
+import { resolveBookmarkInput } from "@/hooks/walletVault";
 
 interface BookmarkListProps {
   bookmarks: Bookmark[];
@@ -26,6 +28,15 @@ export const BookmarkList = memo(function BookmarkList({
 }: BookmarkListProps) {
   const { t } = useTranslation();
   const [confirming, setConfirming] = useState<string | null>(null);
+  /** A locked wallet waiting for the password before it opens */
+  const [unlocking, setUnlocking] = useState<string | null>(null);
+
+  // A locked wallet's placeholder is never scanned: its key comes from the vault, after the password if needed
+  const open = (bm: Bookmark) => {
+    const input = resolveBookmarkInput(bm);
+    if (input) onSelect(input);
+    else setUnlocking(bm.input);
+  };
 
   return (
     <div className="flex flex-wrap items-start gap-2">
@@ -38,17 +49,19 @@ export const BookmarkList = memo(function BookmarkList({
             transition-all text-xs group"
         >
           <button
-            onClick={() => onSelect(bm.input)}
+            onClick={() => { setConfirming(null); open(bm); }}
             className="inline-flex items-center gap-2 cursor-pointer min-w-0"
           >
-            {bm.type === "wallet" && <Lock size={12} className="text-muted shrink-0" aria-label={t("history.walletBookmark", { defaultValue: "Wallet" })} />}
+            {bm.type === "wallet" && (bm.locked
+              ? <Lock size={12} className="text-bitcoin shrink-0" aria-label={t("walletLock.lockedWallet", { defaultValue: "Locked wallet" })} />
+              : <Lock size={12} className="text-muted shrink-0" aria-label={t("history.walletBookmark", { defaultValue: "Wallet" })} />)}
             <span className={`font-bold ${gradeColor(bm.grade)}`}>
               {bm.grade}
             </span>
-            {bm.label && <span className="text-foreground truncate max-w-32">{bm.label}</span>}
+            {(bm.label || bm.locked) && <span className="text-foreground truncate max-w-32">{bm.label || t("walletLock.lockedWallet", { defaultValue: "Locked wallet" })}</span>}
             {bm.type === "wallet" ? (
               <>
-                <span className="font-mono text-muted group-hover:text-foreground transition-colors truncate">{maskWalletKey(bm.input)}</span>
+                {!bm.locked && <span className="font-mono text-muted group-hover:text-foreground transition-colors truncate">{maskWalletKey(bm.input)}</span>}
                 <span className="text-muted whitespace-nowrap">{bm.scriptType} · {bm.network}</span>
               </>
             ) : !bm.label && (
@@ -60,6 +73,7 @@ export const BookmarkList = memo(function BookmarkList({
           <button
             onClick={(e) => {
               e.stopPropagation();
+              setUnlocking(null);
               if (bm.type === "wallet") setConfirming(bm.input);
               else onRemoveBookmark(bm.input);
             }}
@@ -76,6 +90,14 @@ export const BookmarkList = memo(function BookmarkList({
             <RemoveWalletBookmarkPrompt
               snapshotKey={bm.snapshotKey}
               onDone={(remove) => { if (remove) onRemoveBookmark(bm.input); setConfirming(null); }}
+            />
+          </div>
+        )}
+        {unlocking === bm.input && (
+          <div className="basis-full max-w-sm">
+            <UnlockWalletsPrompt
+              onUnlocked={() => { setUnlocking(null); const input = resolveBookmarkInput(bm); if (input) onSelect(input); }}
+              onCancel={() => setUnlocking(null)}
             />
           </div>
         )}

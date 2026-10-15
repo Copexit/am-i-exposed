@@ -7,7 +7,8 @@
  * useBookmarks().importBookmarks.
  */
 
-import { bookmarkStore, mergeBookmarks, mergeGraphs, type Bookmark } from "./useBookmarks";
+import { bookmarkStore, mergeBookmarks, mergeGraphs, walletsSkippedByLock, type Bookmark } from "./useBookmarks";
+import { prepareWalletImport, vaultStore } from "./walletVault";
 import { savedGraphStore } from "./useSavedGraphs";
 import { validateSavedGraph, type SavedGraph } from "@/lib/graph/saved-graph-types";
 import { exportSavedWallets, importSavedWallets, SavedWalletError, type SavedWalletEntry } from "@/lib/wallet/saved-wallets";
@@ -56,6 +57,8 @@ export async function buildBackup(opts: BackupOptions): Promise<BackupPayload> {
     bookmarks: bookmarkStore.getSnapshot().filter((b) => opts.includeWallets || b.type !== "wallet"),
     graphs: savedGraphStore.getSnapshot(),
   };
+  const vault = vaultStore.getSnapshot();
+  if (opts.includeWallets && vault) payload.walletVault = vault;
   if (opts.includeSavedWallets) {
     const saved = await exportSavedWallets();
     if (saved.length > 0) payload.savedWallets = saved;
@@ -112,6 +115,8 @@ export interface RestoreResult {
   graphs: number;
   savedWallets: number;
   settings: number;
+  /** Wallet bookmarks left out because of the wallet lock (see prepareWalletImport) */
+  skippedWallets: number;
   error?: "storage_full";
 }
 
@@ -121,7 +126,7 @@ export interface RestoreResult {
  * and settings only when asked.
  */
 export async function restoreBackup(p: BackupPayload, opts: BackupOptions): Promise<RestoreResult> {
-  const out: RestoreResult = { bookmarks: 0, graphs: 0, savedWallets: 0, settings: 0 };
+  const out: RestoreResult = { bookmarks: 0, graphs: 0, savedWallets: 0, settings: 0, skippedWallets: 0 };
   const full = (): RestoreResult => ({ ...out, error: "storage_full" });
 
   // IndexedDB first: an unexpected failure there leaves nothing half written
@@ -134,9 +139,17 @@ export async function restoreBackup(p: BackupPayload, opts: BackupOptions): Prom
     }
   }
 
-  const b = mergeBookmarks(p.bookmarks, opts.includeWallets);
+  // Wallet lock: the file's vault is adopted or merged first, so a placeholder never lands without its key
+  let prep = { items: p.bookmarks as unknown[], acceptLocked: false, lockOn: false, dropped: 0 };
+  if (opts.includeWallets) {
+    const r = await prepareWalletImport(p.bookmarks, p.walletVault);
+    if (!r) return full();
+    prep = r;
+  }
+  const b = mergeBookmarks(prep.items, opts.includeWallets, prep.acceptLocked, prep.lockOn);
   if (b === null) return full();
   out.bookmarks = b;
+  out.skippedWallets = prep.dropped + walletsSkippedByLock(prep.items, opts.includeWallets, prep.acceptLocked, prep.lockOn);
   const g = mergeGraphs(p.graphs);
   if (g === null) return full();
   out.graphs = g;

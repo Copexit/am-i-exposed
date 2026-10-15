@@ -8,6 +8,8 @@ import { useBookmarks } from "@/hooks/useBookmarks";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useNetwork } from "@/context/NetworkContext";
 import { RemoveWalletBookmarkPrompt } from "@/components/history/RemoveWalletBookmarkPrompt";
+import { UnlockWalletsPrompt } from "@/components/history/UnlockWalletsPrompt";
+import { saveWalletBookmark } from "@/hooks/walletVault";
 
 /**
  * Opt-in wallet bookmark: stores the raw xpub/descriptor in this browser after
@@ -22,10 +24,24 @@ export function WalletBookmarkButton({ input, scriptType, grade, score, snapshot
 }) {
   const { t } = useTranslation();
   const { network } = useNetwork();
-  const { isBookmarked, addBookmark, removeBookmark } = useBookmarks();
+  const { isBookmarked, removeBookmark } = useBookmarks();
   const saved = isBookmarked(input);
   const [dialog, setDialog] = useState(false);
   const [removing, setRemoving] = useState(false);
+  /** The name to save under, waiting for the wallet lock's password */
+  const [pendingName, setPendingName] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  // With the wallet lock on, the key goes into the sealed vault (unlocked first if needed)
+  const save = async (name: string) => {
+    const r = await saveWalletBookmark({
+      input, type: "wallet", grade, score, scriptType, network,
+      ...(name ? { label: name } : {}),
+      ...(snapshotKey ? { snapshotKey } : {}),
+    });
+    setPendingName(r === "locked" ? name : null);
+    setFailed(r === "failed");
+  };
 
   const btn = "inline-flex items-center gap-1.5 min-h-[36px] px-2 rounded-md text-[13px] text-muted hover:text-foreground hover:bg-surface-2 transition-colors cursor-pointer";
 
@@ -45,16 +61,24 @@ export function WalletBookmarkButton({ input, scriptType, grade, score, snapshot
           />
         </div>
       )}
+      {pendingName !== null && (
+        <div className="basis-full flex sm:justify-end">
+          <div className="w-full max-w-sm">
+            <UnlockWalletsPrompt onUnlocked={() => void save(pendingName)} onCancel={() => setPendingName(null)} />
+          </div>
+        </div>
+      )}
+      {failed && (
+        <p role="alert" className="basis-full text-xs text-severity-critical sm:text-right">
+          {t("walletLock.failed", { defaultValue: "The wallet lock could not be updated. Browser storage may be full." })}
+        </p>
+      )}
       {dialog && (
         <BookmarkDialog
           onCancel={() => setDialog(false)}
           onSave={(name) => {
-            addBookmark({
-              input, type: "wallet", grade, score, scriptType, network,
-              ...(name ? { label: name } : {}),
-              ...(snapshotKey ? { snapshotKey } : {}),
-            });
             setDialog(false);
+            void save(name);
           }}
         />
       )}

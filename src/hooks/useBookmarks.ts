@@ -8,6 +8,7 @@ import { validateSavedGraph } from "@/lib/graph/saved-graph-types";
 import type { SavedGraph } from "@/lib/graph/saved-graph-types";
 import { parseXpub } from "@/lib/bitcoin/descriptor";
 import { downloadJson } from "@/lib/download";
+import { isLockOn, isPlaceholder, placeholderFor } from "@/lib/backup/wallet-vault";
 
 export interface Bookmark {
   /** txid, address, or (type "wallet") the raw xpub/descriptor, stored only after an explicit opt-in */
@@ -22,12 +23,15 @@ export interface Bookmark {
   scriptType?: string;
   network?: string;
   snapshotKey?: string;
+  /** Wallet only: `input` is a placeholder, the key is sealed in the wallet lock's vault */
+  locked?: boolean;
 }
 
-/** A wallet entry must carry a key that parses (checksum included). */
+/** A wallet entry must carry a key that parses (checksum included), or a lock placeholder. */
 function isValidWallet(b: Bookmark): boolean {
   if (typeof b.scriptType !== "string" || typeof b.network !== "string") return false;
   if (b.snapshotKey !== undefined && !/^[0-9a-f]{64}$/.test(b.snapshotKey)) return false;
+  if (b.locked === true) return isPlaceholder(b.input);
   try {
     parseXpub(b.input);
     return true;
@@ -36,7 +40,7 @@ function isValidWallet(b: Bookmark): boolean {
   }
 }
 
-function isValidBookmark(b: unknown): b is Bookmark {
+export function isValidBookmark(b: unknown): b is Bookmark {
   return (
     typeof b === "object" && b !== null &&
     typeof (b as Bookmark).input === "string" &&
@@ -60,6 +64,22 @@ export const bookmarkStore = createLocalStorageStore<Bookmark[]>(
 );
 const store = bookmarkStore;
 
+/** Whether `b` is the bookmark of `input` (a locked wallet matches through its placeholder). */
+export function matchesInput(b: Bookmark, input: string): boolean {
+  return b.input === input || (b.locked === true && b.input === placeholderFor(input));
+}
+
+/**
+ * Whether a wallet entry may be merged: locked ones only with their vault
+ * (`acceptLocked`), plain keys only while the lock is off (never stored in clear beside it).
+ */
+const walletAllowed = (b: Bookmark, acceptLocked: boolean, lockOn: boolean) => (b.locked === true ? acceptLocked : !lockOn);
+
+/** Wallet entries an import would skip because of the wallet lock. */
+export function walletsSkippedByLock(items: unknown[], includeWallets: boolean, acceptLocked = false, lockOn = isLockOn()): number {
+  return includeWallets ? items.filter((b) => isValidBookmark(b) && b.type === "wallet" && !walletAllowed(b, acceptLocked, lockOn)).length : 0;
+}
+
 /** Valid wallet entries in a list (they carry raw keys). */
 const countWallets = (items: unknown[]) => items.filter((b) => isValidBookmark(b) && b.type === "wallet").length;
 
@@ -75,9 +95,9 @@ export function walletsInImport(json: string): number {
 }
 
 /** Merge entries into storage. Returns the count merged, or null when the write failed. */
-export function mergeBookmarks(items: unknown[], includeWallets: boolean): number | null {
+export function mergeBookmarks(items: unknown[], includeWallets: boolean, acceptLocked = false, lockOn = isLockOn()): number | null {
   // Labels are capped as when typed (40 characters); wallet keys only after a confirmation
-  const valid = items.filter(isValidBookmark).filter((b) => includeWallets || b.type !== "wallet").map((b) => (typeof b.label === "string" ? { ...b, label: b.label.slice(0, 40) } : { ...b, label: undefined }));
+  const valid = items.filter(isValidBookmark).filter((b) => b.type !== "wallet" || (includeWallets && walletAllowed(b, acceptLocked, lockOn))).map((b) => (typeof b.label === "string" ? { ...b, label: b.label.slice(0, 40) } : { ...b, label: undefined }));
   if (valid.length === 0) return 0;
   const existing = store.getSnapshot();
   const byInput = new Map(existing.map((b) => [b.input, b]));
@@ -122,7 +142,7 @@ export function useBookmarks() {
   );
 
   const isBookmarked = useCallback(
-    (input: string) => bookmarks.some((b) => b.input === input),
+    (input: string) => bookmarks.some((b) => matchesInput(b, input)),
     [bookmarks],
   );
 
@@ -139,7 +159,7 @@ export function useBookmarks() {
 
   const removeBookmark = useCallback((input: string) => {
     const existing = store.getSnapshot();
-    const updated = existing.filter((b) => b.input !== input);
+    const updated = existing.filter((b) => !matchesInput(b, input));
     store.set(updated);
   }, []);
 
@@ -159,9 +179,12 @@ export function useBookmarks() {
     store.set(store.getSnapshot().filter((b) => b.type !== "wallet"));
   }, []);
 
-  /** Export workspace (bookmarks + saved graphs) as a single JSON file. Wallet keys only when asked. */
+  /**
+   * Export workspace (bookmarks + saved graphs) as a single JSON file. Wallet keys only when asked;
+   * locked wallets never (without their vault they cannot be opened: the full backup carries both).
+   */
   const exportBookmarks = useCallback(({ includeWallets = false }: { includeWallets?: boolean } = {}) => {
-    const bookmarkData = store.getSnapshot().filter((b) => includeWallets || b.type !== "wallet");
+    const bookmarkData = store.getSnapshot().filter((b) => b.type !== "wallet" || (includeWallets && !b.locked));
     const graphData = savedGraphStore.getSnapshot();
     const workspace = { version: 1, bookmarks: bookmarkData, graphs: graphData };
     downloadJson("am-i-exposed-workspace.json", JSON.stringify(workspace, null, 2));
@@ -172,7 +195,7 @@ export function useBookmarks() {
    * Wallet bookmarks are skipped unless `includeWallets` (after the privacy confirmation).
    */
   const importBookmarks = useCallback(
-    (json: string, { includeWallets = false }: { includeWallets?: boolean } = {}): { imported: number; error?: string } => {
+    (json: string, { includeWallets = false }: { includeWallets?: boolean } = {}): { imported: number; error?: string; skippedWallets?: number } => {
       let parsed: unknown;
       try {
         parsed = JSON.parse(json);
@@ -188,6 +211,8 @@ export function useBookmarks() {
       if (Array.isArray(parsed)) {
         const count = mergeBookmarks(parsed, includeWallets);
         if (count === null) return storageFull;
+        const skippedWallets = walletsSkippedByLock(parsed, includeWallets);
+        if (skippedWallets > 0) return { imported: count, skippedWallets };
         if (count === 0) return { imported: 0, error: "no_valid_entries" };
         return { imported: count };
       }
@@ -198,10 +223,12 @@ export function useBookmarks() {
       const obj = parsed as Record<string, unknown>;
 
       // Format 2: Workspace { version, bookmarks, graphs }
+      let skippedWallets = 0;
       if (Array.isArray(obj.bookmarks)) {
         const count = mergeBookmarks(obj.bookmarks, includeWallets);
         if (count === null) return storageFull;
         importedCount += count;
+        skippedWallets = walletsSkippedByLock(obj.bookmarks, includeWallets);
       }
       if (Array.isArray(obj.graphs)) {
         const count = mergeGraphs(obj.graphs);
@@ -214,6 +241,7 @@ export function useBookmarks() {
         return { imported: 0, error: "invalid_format" };
       }
 
+      if (skippedWallets > 0) return { imported: importedCount, skippedWallets };
       if (importedCount === 0) return { imported: 0, error: "no_valid_entries" };
       return { imported: importedCount };
     },
