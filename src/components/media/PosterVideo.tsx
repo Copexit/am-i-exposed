@@ -5,7 +5,11 @@ import { useTranslation } from "react-i18next";
 import { Play } from "lucide-react";
 import type { SubtitleTrack } from "@/lib/media/video-sources";
 
-export interface PosterVideoHandle { seek(seconds: number): void }
+export interface PosterVideoHandle {
+  seek(seconds: number): void;
+  /** Sets where playback starts without playing (a shared chapter link: autoplay with sound needs a gesture). */
+  cue(seconds: number): void;
+}
 type Aspect = "16/9" | "9/16";
 interface Resolved { src: string; poster: string; aspect: Aspect }
 export interface PosterVideoProps {
@@ -58,6 +62,10 @@ export const PosterVideo = forwardRef<PosterVideoHandle, PosterVideoProps>(funct
       pending.current = null; // a later loadedmetadata must not re-apply an older chapter
       v.currentTime = seconds;
       play(v);
+    },
+    cue(seconds: number) {
+      if (videoRef.current) videoRef.current.currentTime = seconds;
+      else pending.current = seconds;
     },
   }), [start]);
 
