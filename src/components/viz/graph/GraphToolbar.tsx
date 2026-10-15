@@ -312,7 +312,7 @@ export function GraphToolbar(props: GraphToolbarProps) {
               ? "text-bitcoin border-bitcoin/30 bg-bitcoin/10"
               : "text-muted hover:text-foreground border-card-border"
           }`}
-          title={t("graph.selectModeTitle", { defaultValue: "Select nodes (or Ctrl/Cmd+click)" })}
+          title={t("graph.selectModeTitle", { defaultValue: "Select nodes (or Ctrl/Cmd+click, Shift+Enter)" })}
           aria-label={t("graph.selectMode", { defaultValue: "Select nodes" })}
         >
           <SquareDashedMousePointer size={12} />

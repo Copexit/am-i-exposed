@@ -23,7 +23,7 @@ import { GraphTooltipContent } from "./graph/GraphTooltipContent";
 import { GraphViewport } from "./graph/GraphViewport";
 import { BatchBar } from "./graph/BatchBar";
 import { FilterChips } from "./graph/FilterChips";
-import { nodesWithinHops } from "@/lib/graph/isolate";
+import { nodesWithinHops, nextIsolateSeeds } from "@/lib/graph/isolate";
 import { useGraphExplorerState, activePositionOverrides } from "./graph/useGraphExplorerState";
 import { useGraphHeatMap } from "./graph/useGraphHeatMap";
 import { useChangeOutputDetection } from "./graph/useChangeOutputDetection";
@@ -238,17 +238,30 @@ export function GraphExplorer(props: GraphExplorerProps) {
   useChangeOutputDetection({ nodes: graph.nodes, dispatch, userToggledRef });
 
   // ─── Multi-select, hide, isolate ───────────────────────
+  // Only seeds still in the graph count; with none left the isolate is off (and ends below)
+  const isolateSeedCount = isolate ? [...isolate.txids].filter((txid) => graph.nodes.has(txid)).length : 0;
   // Hides and isolate leave nodes out of the layout like the type filters
   const excludedTxids = useMemo(() => {
     if (hidden.size === 0 && !isolate) return undefined;
     const out = new Set(hidden);
-    if (isolate) {
+    if (isolate && isolateSeedCount > 0) {
       const keep = nodesWithinHops(graph.nodes, isolate.txids, isolate.hops);
       for (const txid of graph.nodes.keys()) if (!keep.has(txid)) out.add(txid);
     }
     return out;
-  }, [graph.nodes, hidden, isolate]);
-  // Undo or a collapse can drop selected nodes: act on the ones still in the graph
+  }, [graph.nodes, hidden, isolate, isolateSeedCount]);
+  // Isolate follows the graph: seeds that left drop out, new nodes (expand, Add to
+  // graph) join, and with no seed left the isolate ends
+  const isolateKeysRef = useRef<Set<string>>(new Set(graph.nodes.keys()));
+  useEffect(() => {
+    const prevKeys = isolateKeysRef.current;
+    isolateKeysRef.current = new Set(graph.nodes.keys());
+    if (!isolate) return;
+    const seeds = nextIsolateSeeds(isolate.txids, prevKeys, graph.nodes);
+    if (seeds !== isolate.txids) dispatch({ type: "SET_ISOLATE", isolate: seeds && { txids: new Set(seeds), hops: isolate.hops } });
+  }, [graph.nodes, isolate, dispatch]);
+  // The selection is pruned to laid-out nodes after every layout (onLayoutComplete);
+  // until then, act only on nodes still in the graph
   const selectedTxids = useMemo(() => [...selection].filter((txid) => graph.nodes.has(txid)), [selection, graph.nodes]);
   const manualHiddenCount = useMemo(
     () => [...hidden].filter((txid) => graph.nodes.has(txid) && !graph.rootTxids.has(txid)).length,
@@ -305,6 +318,8 @@ export function GraphExplorer(props: GraphExplorerProps) {
   const { rootTxid, rootTxids } = graph;
   const onLayoutComplete = useCallback((info: Parameters<typeof handleLayoutComplete>[0]) => {
     handleLayoutComplete(info);
+    // Batch actions only ever apply to what is on screen
+    dispatch({ type: "PRUNE_SELECTION", visible: info.nodePositions });
     if (info.containerHeight <= 0 || info.nodePositions.size === 0) return;
     // A new node's seed position lands on the next layout: frame that one instead
     if (pendingSeedRef.current) return;
@@ -455,6 +470,8 @@ export function GraphExplorer(props: GraphExplorerProps) {
     onToggleBundle: (key: string) => dispatch({ type: "TOGGLE_BUNDLE", key }),
     // In pick mode a click (with or without a modifier) sets the connection's To
     selection, selectMode, excludedTxids,
+    // The window handler owns Escape while any of these is open
+    escapeTaken: selection.size > 0 || selectMode || pickMode || !!connection,
     onToggleSelect: pickMode ? undefined : (txid: string) => dispatch({ type: "TOGGLE_SELECTED", txid }),
   };
 
@@ -464,7 +481,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
       onToggleFilter={(key: keyof NodeFilter) => dispatch({ type: "TOGGLE_FILTER", key })}
       hiddenCount={manualHiddenCount}
       onShowHidden={() => dispatch({ type: "SET_HIDDEN", txids: new Set() })}
-      isolate={isolate && { count: isolate.txids.size, hops: isolate.hops }}
+      isolate={isolate && isolateSeedCount > 0 ? { count: isolateSeedCount, hops: isolate.hops } : null}
       onClearIsolate={() => dispatch({ type: "SET_ISOLATE", isolate: null })}
     />
   );

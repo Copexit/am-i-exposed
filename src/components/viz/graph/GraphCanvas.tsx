@@ -75,6 +75,7 @@ export function GraphCanvas({
   onToggleSelect,
   selectMode,
   excludedTxids,
+  escapeTaken,
 }: GraphCanvasProps) {
   // Subscribe to theme changes so SVG_COLORS proxy resolves fresh values on re-render
   useTheme();
@@ -185,7 +186,9 @@ export function GraphCanvas({
     onExpandOutput,
     onCollapse,
     onToggleExpand,
-    escapeHandledAbove: !!selection?.size || !!selectMode,
+    escapeHandledAbove: escapeTaken,
+    onToggleSelect,
+    selectMode,
   });
 
   // Auto-scroll to keep focused node visible

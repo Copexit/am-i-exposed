@@ -54,7 +54,7 @@ test("ctrl+click selects two nodes, Hide hides them, the chip brings them back",
   const chips = page.getByTestId("graph-filter-chips");
   await expect(chips).toContainText("2 hidden");
 
-  await chips.getByRole("button", { name: "Remove: 2 hidden" }).click();
+  await chips.getByRole("button", { name: "Clear filter: 2 hidden" }).click();
   await expect(node(page, MID.txid)).toBeVisible();
   await expect(node(page, ROOT.txid)).toBeVisible();
   await expect(chips).toHaveCount(0);
@@ -64,6 +64,26 @@ test("ctrl+click selects two nodes, Hide hides them, the chip brings them back",
   await expect(bar).toContainText("1 selected");
   await page.keyboard.press("Escape");
   await expect(bar).toHaveCount(0);
+});
+
+test("isolate keeps nodes expanded inside it, and ends when its seeds are removed", async ({ page }) => {
+  await openChain(page, 1);
+  await node(page, MID.txid).click({ modifiers: ["Control"] });
+  const bar = page.getByTestId("graph-batch-bar");
+  await bar.getByRole("button", { name: "Isolate 1 hop" }).click();
+  const chips = page.getByTestId("graph-filter-chips");
+  await expect(chips).toContainText("Isolated: 1 hop around 1 node");
+
+  // A node expanded while isolated joins the isolate instead of vanishing
+  await node(page, MID.txid).getByRole("button", { name: "Expand inputs" }).click();
+  await expect(node(page, ROOT.txid)).toBeVisible();
+  await expect(chips).toContainText("Isolated: 1 hop around 2 nodes");
+
+  // MID is still selected; removing it (ROOT goes with it) ends the isolate and its chip
+  await expect(bar).toContainText("1 selected");
+  await bar.getByRole("button", { name: "Remove" }).click();
+  await expect(node(page, MID.txid)).toHaveCount(0);
+  await expect(chips).toHaveCount(0);
 });
 
 test.describe("on a phone", () => {

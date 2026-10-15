@@ -122,8 +122,8 @@ describe("useSaveLoadShare - layout mode", () => {
 });
 
 describe("useSaveLoadShare - hidden nodes", () => {
-  const txid = "e".repeat(64);
-  const nodes = new Map([[txid, { txid, depth: 0 }]]) as never;
+  const root = "e".repeat(64), kid = "f".repeat(64);
+  const nodes = new Map([[root, { txid: root, depth: 0 }], [kid, { txid: kid, depth: 1 }]]) as never;
   const stored = () => JSON.parse(localStorage.getItem("ami-saved-graphs") ?? "[]") as { id: string; hiddenTxids?: string[] }[];
   beforeEach(() => localStorage.clear());
   afterEach(() => localStorage.clear());
@@ -131,15 +131,20 @@ describe("useSaveLoadShare - hidden nodes", () => {
   it("saves the hidden txids, and Update rewrites them", () => {
     const { result, rerender } = renderHook(
       ({ hiddenTxids, currentGraphId }: { hiddenTxids: Set<string>; currentGraphId: string | null }) =>
-        useSaveLoadShare({ nodes, rootTxid: txid, rootTxids: new Set([txid]), network: "mainnet", currentGraphId, hiddenTxids }),
-      { initialProps: { hiddenTxids: new Set([txid]), currentGraphId: null as string | null } },
+        useSaveLoadShare({ nodes, rootTxid: root, rootTxids: new Set([root]), network: "mainnet", currentGraphId, hiddenTxids }),
+      { initialProps: { hiddenTxids: new Set([kid, "a".repeat(64)]), currentGraphId: null as string | null } },
     );
     act(() => { result.current.handleSave(); });
     const [saved] = stored();
-    expect(saved?.hiddenTxids).toEqual([txid]);
+    // A hidden txid no longer in the graph is not saved
+    expect(saved?.hiddenTxids).toEqual([kid]);
 
     rerender({ hiddenTxids: new Set(), currentGraphId: saved!.id });
     act(() => { result.current.handleUpdate(); });
     expect(stored()[0]?.hiddenTxids).toBeUndefined();
+
+    rerender({ hiddenTxids: new Set([kid]), currentGraphId: saved!.id });
+    act(() => { result.current.handleUpdate(); });
+    expect(stored()[0]?.hiddenTxids).toEqual([kid]);
   });
 });

@@ -25,8 +25,8 @@ export function FilterChips({ filter, onToggleFilter, hiddenCount, onShowHidden,
     chips.push({
       id: "isolate",
       label: isolate.hops === 1
-        ? t("graph.chips.isolated1", { count: isolate.count, defaultValue: "Isolated: 1 hop around {{count}}" })
-        : t("graph.chips.isolated2", { count: isolate.count, defaultValue: "Isolated: 2 hops around {{count}}" }),
+        ? t("graph.chips.isolated1", { count: isolate.count, defaultValue: "Isolated: 1 hop around {{count}} nodes" })
+        : t("graph.chips.isolated2", { count: isolate.count, defaultValue: "Isolated: 2 hops around {{count}} nodes" }),
       onRemove: onClearIsolate,
     });
   }
@@ -40,7 +40,7 @@ export function FilterChips({ filter, onToggleFilter, hiddenCount, onShowHidden,
           <button
             type="button"
             onClick={c.onRemove}
-            aria-label={t("graph.chips.remove", { name: c.label, defaultValue: "Remove: {{name}}" })}
+            aria-label={t("graph.chips.remove", { name: c.label, defaultValue: "Clear filter: {{name}}" })}
             className="inline-flex items-center justify-center min-h-8 min-w-8 rounded-full text-muted hover:text-foreground cursor-pointer"
           >
             <CloseIcon size={12} />

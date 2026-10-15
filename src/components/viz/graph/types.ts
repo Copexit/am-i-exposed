@@ -228,6 +228,8 @@ export interface GraphCanvasProps {
   selectMode?: boolean;
   /** Txids left out of the layout (manual hides, outside an isolate). */
   excludedTxids?: ReadonlySet<string>;
+  /** Escape belongs to the window handler (selection, select mode, pick mode, panel): the canvas leaves it. */
+  escapeTaken?: boolean;
 }
 
 export interface MinimapProps {

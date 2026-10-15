@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { layoutGraph } from "../layout";
-import { nodesWithinHops } from "@/lib/graph/isolate";
+import { nodesWithinHops, nextIsolateSeeds } from "@/lib/graph/isolate";
 import type { GraphNode } from "@/lib/graph/graph-reducer";
 import { makeTx, makeVin } from "@/lib/analysis/heuristics/__tests__/fixtures/tx-factory";
 
@@ -38,5 +38,34 @@ describe("nodesWithinHops", () => {
 
   it("ignores seeds not in the graph", () => {
     expect([...nodesWithinHops(g, ["zz"], 2)]).toEqual([]);
+  });
+});
+
+describe("nextIsolateSeeds", () => {
+  const keys = new Set(g.keys());
+
+  it("keeps the same set when the graph did not change", () => {
+    const seeds = new Set(["A"]);
+    expect(nextIsolateSeeds(seeds, keys, g)).toBe(seeds);
+  });
+
+  it("ends the isolate when no seed is left in the graph", () => {
+    expect(nextIsolateSeeds(new Set(["gone"]), keys, g)).toBeNull();
+  });
+
+  it("drops seeds that left and adds nodes that arrived", () => {
+    const grown = new Map(g).set("E", node("E", 4, "C"));
+    expect([...nextIsolateSeeds(new Set(["A", "gone"]), keys, grown)!].sort()).toEqual(["A", "E"]);
+  });
+});
+
+describe("isolate through layoutGraph", () => {
+  it("lays out only the nodes within the hops, in time mode too", () => {
+    const keep = nodesWithinHops(g, ["C"], 1);
+    const excluded = new Set([...g.keys()].filter((t) => !keep.has(t)));
+    // R is the root, so it stays
+    expect(shown(excluded, null, "time")).toEqual(["B", "C", "R"]);
+    const { edges } = layoutGraph(g, "R", ALL, undefined, null, false, undefined, "time", excluded);
+    expect(edges.map((e) => `${e.fromTxid}->${e.toTxid}`)).toEqual(["B->C"]);
   });
 });

@@ -123,6 +123,8 @@ type GraphExplorerAction =
   | { type: "SET_HIGHLIGHT"; txids: Set<string> }
   | { type: "TOGGLE_SELECTED"; txid: string }
   | { type: "SET_SELECTION"; txids: Set<string> }
+  /** Drops selected txids that are not laid out (filtered, hidden, isolated away, removed). */
+  | { type: "PRUNE_SELECTION"; visible: ReadonlyMap<string, unknown> | ReadonlySet<string> }
   | { type: "HIDE_NODES"; txids: Set<string> }
   | { type: "SET_HIDDEN"; txids: Set<string> }
   | { type: "SET_ISOLATE"; isolate: { txids: Set<string>; hops: 1 | 2 } | null }
@@ -279,6 +281,10 @@ function graphExplorerReducer(state: GraphExplorerState, action: GraphExplorerAc
     }
     case "SET_SELECTION":
       return state.selection.size === 0 && action.txids.size === 0 ? state : { ...state, selection: action.txids };
+    case "PRUNE_SELECTION": {
+      const kept = [...state.selection].filter((txid) => action.visible.has(txid));
+      return kept.length === state.selection.size ? state : { ...state, selection: new Set(kept) };
+    }
     case "HIDE_NODES":
       // Hidden nodes leave the selection: the batch bar only counts what is on screen
       return { ...state, hidden: new Set([...state.hidden, ...action.txids]), selection: new Set() };

@@ -34,3 +34,20 @@ export function nodesWithinHops(
   }
   return seen;
 }
+
+/**
+ * Isolate seeds after the graph changed: seeds that left the graph drop out and
+ * nodes added since `prevKeys` join (an expand inside an isolate shows up).
+ * Null when no seed is left (the isolate ends); the same set when nothing changed.
+ */
+export function nextIsolateSeeds(
+  seeds: ReadonlySet<string>,
+  prevKeys: ReadonlySet<string>,
+  nodes: ReadonlyMap<string, unknown>,
+): ReadonlySet<string> | null {
+  const kept = [...seeds].filter((txid) => nodes.has(txid));
+  if (kept.length === 0) return null;
+  const added = [...nodes.keys()].filter((txid) => !prevKeys.has(txid) && !seeds.has(txid));
+  if (added.length === 0 && kept.length === seeds.size) return seeds;
+  return new Set([...kept, ...added]);
+}

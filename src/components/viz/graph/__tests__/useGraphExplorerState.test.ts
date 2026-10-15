@@ -102,3 +102,24 @@ describe("per-mode position overrides", () => {
     expect(result.current.state.layoutMode).toBe("hops");
   });
 });
+
+describe("selection follows visibility", () => {
+  it("drops selected nodes the layout left out, keeping the state when nothing changes", () => {
+    const { result } = setup();
+    act(() => { for (const t of [A, B, C]) result.current.dispatch({ type: "TOGGLE_SELECTED", txid: t }); });
+    // C is isolated away (any exclusion: filters, hides and isolate all reach the layout this way)
+    const { nodePositions } = layoutGraph(nodes, A, ALL, undefined, null, false, undefined, "hops", new Set([C]));
+    act(() => result.current.dispatch({ type: "PRUNE_SELECTION", visible: nodePositions }));
+    expect([...result.current.state.selection].sort()).toEqual([A, B].sort());
+    const before = result.current.state;
+    act(() => result.current.dispatch({ type: "PRUNE_SELECTION", visible: nodePositions }));
+    expect(result.current.state).toBe(before);
+  });
+
+  it("loading a saved graph clears the selection", () => {
+    const { result } = setup();
+    act(() => result.current.dispatch({ type: "TOGGLE_SELECTED", txid: B }));
+    act(() => result.current.restoreSavedGraph({ ...SAVED, id: "other" }));
+    expect(result.current.state.selection.size).toBe(0);
+  });
+});

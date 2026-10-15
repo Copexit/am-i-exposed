@@ -17,6 +17,9 @@ interface UseKeyboardNavigationParams {
   onToggleExpand?: (txid: string) => void;
   /** Escape clears the selection or select mode (window handler) before collapsing ports. */
   escapeHandledAbove?: boolean;
+  /** Shift+Enter/Space (or Enter/Space in select mode) toggles the focused node's selection. */
+  onToggleSelect?: (txid: string) => void;
+  selectMode?: boolean;
 }
 
 export function useKeyboardNavigation({
@@ -32,6 +35,8 @@ export function useKeyboardNavigation({
   onCollapse,
   onToggleExpand,
   escapeHandledAbove,
+  onToggleSelect,
+  selectMode,
 }: UseKeyboardNavigationParams): (e: React.KeyboardEvent) => void {
   return useCallback((e: React.KeyboardEvent) => {
     // Don't capture keys when typing in an input element
@@ -83,16 +88,12 @@ export function useKeyboardNavigation({
       }
 
       // ─── Actions ─────────────────────────
-      case "Enter": {
-        // Toggle expand/collapse UTXO ports on focused node
-        e.preventDefault();
-        if (onToggleExpand) onToggleExpand(focusedNode);
-        break;
-      }
+      case "Enter":
       case " ": {
-        // Space: same as Enter (expand ports)
+        // Toggle expand/collapse UTXO ports on focused node, or its selection
         e.preventDefault();
-        if (onToggleExpand) onToggleExpand(focusedNode);
+        if (onToggleSelect && (e.shiftKey || selectMode)) onToggleSelect(focusedNode);
+        else if (onToggleExpand) onToggleExpand(focusedNode);
         break;
       }
       case "e": {
@@ -159,5 +160,5 @@ export function useKeyboardNavigation({
         break;
       }
     }
-  }, [focusedNode, layoutNodes, nodes, rootTxid, atCapacity, onExpandInput, onExpandOutput, onCollapse, setFocusedNode, onToggleExpand, expandedNodeTxid, escapeHandledAbove]);
+  }, [focusedNode, layoutNodes, nodes, rootTxid, atCapacity, onExpandInput, onExpandOutput, onCollapse, setFocusedNode, onToggleExpand, expandedNodeTxid, escapeHandledAbove, onToggleSelect, selectMode]);
 }

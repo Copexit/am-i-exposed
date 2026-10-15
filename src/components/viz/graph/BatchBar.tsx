@@ -30,7 +30,7 @@ export function BatchBar({ count, onLabel, onHide, onIsolate, onRemove, onSelect
 
   return (
     <div
-      role="toolbar"
+      role="group"
       aria-label={t("graph.batch.title", { defaultValue: "Selection actions" })}
       data-testid="graph-batch-bar"
       className="absolute z-20 bottom-2 inset-x-2 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:max-w-[calc(100%-1rem)] rounded-xl border border-card-border bg-card-bg/95 backdrop-blur-xl shadow-(--shadow-pop) px-2 py-1.5 flex flex-wrap items-center gap-1.5"
