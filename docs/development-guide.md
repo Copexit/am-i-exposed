@@ -103,6 +103,7 @@ src/
     ├── scoring/score.ts          # calculateScore, sumImpact, grades
     ├── recommendations/          # Primary recommendation cascade, remediation actions
     ├── graph/                    # Graph reducer, expansion ops, auto-trace, URL codec, saved graphs
+    │                             # connection-search, path-scoring, path-to-graph, graph-labels-bip329, isolate
     ├── wallet/                   # scan.ts: gap-limit address scan with hosted-API throttling;
     │                             # saved-wallets.ts: hashed-key snapshots (IndexedDB); refresh.ts: quick refresh
     ├── observatory/              # whirlpool + Wabisator clients, cache, sky/board/coordinator models, URL state

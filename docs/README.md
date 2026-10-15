@@ -42,7 +42,7 @@
 - **[spec-wallet-heuristics.md](./spec-wallet-heuristics.md)** - Wallet-level heuristics: post-mix and change merges, change exposure, peel chains, coin origins (0.41.0)
 - **[superpowers/plans/2026-10-07-wallet-heuristics.md](./superpowers/plans/2026-10-07-wallet-heuristics.md)** - Task-by-task implementation plan for the spec above
 - **[spec-site-videos.md](./spec-site-videos.md)** - Promo on the home page and /tutorial page, GitHub Pages only
-- **[tx-graph-roadmap.md](./tx-graph-roadmap.md)** - Transaction graph roadmap
+- **[tx-graph-roadmap.md](./tx-graph-roadmap.md)** - Transaction graph roadmap and shipped investigation tools (find connection, BIP329 graph labels, time layout, multi-select)
 - **[wallet-roadmap.md](./wallet-roadmap.md)** - Roadmap to a privacy-first watch-only wallet (spend with hardware signers, receive, multisig)
 
 ## Research Archive

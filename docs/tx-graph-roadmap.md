@@ -6,6 +6,43 @@ See `docs/adr-oxt-graph.md` for the current architecture and `docs/research-oxt-
 
 ---
 
+## Shipped: Investigation Tools
+
+Four features for tracing and organising a graph. All run in the browser against mempool.space only.
+
+### Find connection
+
+Toolbar button (and "Find connection from here" in the sidebar) opens a panel with From and To (a txid or an address; a node can be picked on the canvas). `src/lib/graph/connection-search.ts` runs a bounded bidirectional search over funding links and reports paths of kind `a-funds-b`, `b-funds-a`, `direct`, `shared-ancestor` and `shared-descendant`, shortest first, at most 5 per kind. Each path is scored per hop (`path-scoring.ts`) and the weakest hop sets the tier. Results can be added to the graph one by one or all at once (`path-to-graph.ts`, reducer action `ADD_NODES`, one undo step).
+
+Budgets (adjustable in the panel): hops per side 1-8, transactions 20-600, seconds 10-120. The search stops at CoinJoins by default, since a CoinJoin hop is not proof of a link. A search that ends on a budget says why, and offers "Search deeper".
+
+Limits:
+- The search is budgeted (hops, transactions, time) and stops at CoinJoins by default; "No path" means none within those limits, not that none exists.
+- Connection scores without a computed Boltzmann matrix are estimates (marked as such on the hop).
+- A shared funder (two outputs of one transaction) is an estimate, not a deterministic link.
+- Failed requests are counted and shown ("results may be incomplete").
+
+### Graph labels as BIP329
+
+The Save panel exports node and edge labels as a BIP329 `.jsonl` file and imports one back. `src/lib/graph/graph-labels-bip329.ts` maps labels to `tx` and `output` records. Import and the wallet labels panel share one conflict preview (`Bip329ConflictPreview.tsx`, merge logic in `src/lib/wallet/bip329-merge.ts`): existing labels are kept on conflict, each conflict can be switched to the incoming label, and fields merge one by one (an incoming record without `spendable` never overrides it). Exports are plaintext, which the UI warns about.
+
+### Chronological layout and bundling
+
+The "Time" toolbar toggle (shortcut `t`) places nodes in columns by block height, with a header per column and a gap marker for skipped blocks; unconfirmed transactions go last. In port mode, 3 or more parallel outputs between the same two transactions are drawn as one thicker edge with a ×N badge; the badge toggles the individual output curves.
+
+Limits:
+- Time-mode drags are not saved. The saved positions belong to the hops layout, and switching layouts drops the other mode's drags. A saved graph remembers the layout mode only.
+
+### Multi-select and batch actions
+
+Ctrl/Cmd/Shift+click selects nodes; "Select" mode makes any tap select, for touch. A batch bar offers label, hide, isolate (1 or 2 hops) and remove (one undo step; roots are never removed or hidden). Filter chips under the toolbar show active filters, the hidden count and the isolate state. Hidden nodes are saved with the graph (not in share links).
+
+Limits:
+- Isolate counts hops through hidden nodes.
+- Hide is reversed with the chip's ×, not with Undo.
+
+---
+
 ## Sprint 1: Core UX + Auto-Trace
 
 ### 1.1 Auto-Trace Peel Chain ("One-Click Trace")
@@ -200,3 +237,9 @@ Features requiring new settings in `useAnalysisSettings`:
 3. **Visual encoding is king.** Color, thickness, shape, dashing, opacity, position - encode data in every visual channel. The user should understand the graph before reading any text.
 4. **Client-side only.** Every computation runs in the browser. No proprietary databases. mempool.space API only. This is a constraint that forces innovation.
 5. **Keyboard-first for power users.** Every action should be one keypress away. Mouse for exploration, keyboard for speed.
+
+---
+
+## References
+
+- Connection search, output bundling and batch selection were inspired by Chaingraph (github.com/remcoros/chaingraph, MIT); no code was copied.
