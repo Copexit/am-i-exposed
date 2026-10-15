@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { DEFAULT_ANALYSIS_SETTINGS, getAnalysisSettings, clampGapLimit, gapLimitToStep, stepToGapLimit } from "@/lib/analysis/settings";
+import { DEFAULT_ANALYSIS_SETTINGS, getAnalysisSettings, clampGapLimit, gapLimitToStep, stepToGapLimit, sanitizeAnalysisSettings } from "@/lib/analysis/settings";
 
 describe("analysis settings store", () => {
   it("has the documented defaults", () => {
@@ -56,6 +56,23 @@ describe("analysis settings store", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it("sanitizes hostile stored or restored values", () => {
+    const hostile = JSON.parse(
+      '{"maxDepth":1e9,"minSats":-5,"timeout":"30","walletGapLimit":-1,"boltzmannTimeout":null,"enableCache":"false",' +
+      '"skipCoinJoins":1,"skipLargeClusters":true,"extra":"x","__proto__":{"polluted":true}}',
+    ) as unknown;
+    const s = sanitizeAnalysisSettings(hostile);
+    expect(s).toEqual({
+      ...DEFAULT_ANALYSIS_SETTINGS,
+      maxDepth: 50, minSats: 100, walletGapLimit: 1, skipLargeClusters: true,
+    });
+    expect(Object.keys(s).sort()).toEqual(Object.keys(DEFAULT_ANALYSIS_SETTINGS).sort());
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    expect(sanitizeAnalysisSettings({ maxDepth: NaN, timeout: Infinity, minSats: 1e9 })).toMatchObject({ maxDepth: 4, timeout: 30, minSats: 100000 });
+    expect(sanitizeAnalysisSettings("nope")).toEqual(DEFAULT_ANALYSIS_SETTINGS);
+    expect(sanitizeAnalysisSettings([1, 2])).toEqual(DEFAULT_ANALYSIS_SETTINGS);
   });
 
   it("maps slider steps to gap limits and back (nearest step for unknown values)", () => {

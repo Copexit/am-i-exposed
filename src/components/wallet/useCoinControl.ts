@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { isPlaceholder } from "@/lib/backup/wallet-vault";
+import { resolvePlaceholder } from "@/hooks/walletVault";
 import { DEFAULT_MAX_ABSORB, outpointOf, PLAN_CRITERIA, type CoinSelectionInput, type CoinSelectionPlan, type PlanCriterion } from "@/lib/analysis/coin-selection";
 
 /**
@@ -58,7 +60,9 @@ export const parseMaxAbsorb = (v: string) => { const n = Number(v); return v.tri
 function hashParams(xpub: string | null): URLSearchParams | null {
   if (!xpub || typeof window === "undefined") return null;
   const params = new URLSearchParams(window.location.hash.slice(1));
-  return params.get("xpub")?.includes(xpub) ? params : null;
+  const h = params.get("xpub");
+  // A locked bookmark's hash holds its placeholder, not the key
+  return (h && isPlaceholder(h) ? resolvePlaceholder(h) : h)?.includes(xpub) ? params : null;
 }
 
 function readHash(xpub: string | null): { criterion: PlanCriterion; outpoints: ReadonlySet<string>; maxAbsorb: string; recipient: string } {

@@ -12,6 +12,7 @@ import { ImportWalletsPrompt } from "./history/ImportWalletsPrompt";
 import { walletsInImport } from "@/hooks/useBookmarks";
 import type { RecentScan } from "@/hooks/useRecentScans";
 import type { Bookmark } from "@/hooks/useBookmarks";
+import { skippedMessage } from "./settings/WalletLockSettings";
 import type { ExampleItem } from "@/lib/constants";
 
 interface ScanHistoryProps {
@@ -23,7 +24,7 @@ interface ScanHistoryProps {
   onRemoveBookmark: (input: string) => void;
   onClearBookmarks: () => void;
   onExportBookmarks?: (opts?: { includeWallets?: boolean }) => void;
-  onImportBookmarks?: (json: string, opts?: { includeWallets?: boolean }) => { imported: number; error?: string };
+  onImportBookmarks?: (json: string, opts?: { includeWallets?: boolean }) => { imported: number; error?: string; skippedWallets?: number };
 }
 
 type Tab = "recent" | "bookmarks" | "examples";
@@ -53,7 +54,8 @@ export const ScanHistory = memo(function ScanHistory({
   const [exportPrompt, setExportPrompt] = useState(false);
   /** A file with wallet bookmarks, waiting for the privacy confirmation */
   const [pendingImport, setPendingImport] = useState<{ json: string; wallets: number } | null>(null);
-  const walletCount = bookmarks.filter((b) => b.type === "wallet").length;
+  // Locked wallets are never in this export (their keys are sealed in the vault)
+  const walletCount = bookmarks.filter((b) => b.type === "wallet" && !b.locked).length;
   const [importFeedback, setImportFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -67,7 +69,8 @@ export const ScanHistory = memo(function ScanHistory({
     } else if (result.error) {
       setImportFeedback({ type: "error", message: t("history.importError", { defaultValue: "Invalid bookmark file" }) });
     } else {
-      setImportFeedback({ type: "success", message: t("history.importSuccess", { defaultValue: "{{count}} bookmarks imported", count: result.imported }) });
+      const msg = t("history.importSuccess", { defaultValue: "{{count}} bookmarks imported", count: result.imported });
+      setImportFeedback({ type: "success", message: result.skippedWallets ? `${msg} ${skippedMessage(t, result.skippedWallets)}` : msg });
     }
     clearTimeout(feedbackTimerRef.current);
     feedbackTimerRef.current = setTimeout(() => setImportFeedback(null), 3000);

@@ -109,3 +109,62 @@ test("wallet bookmark: privacy dialog, one-click reopen, export excludes wallets
   await page.getByRole("tab", { name: /Bookmarks/ }).click();
   await expect(page.getByTestId("wallet-bookmark-item")).toContainText("Savings");
 });
+
+test("wallet key lock: a locked bookmark asks for the password, then the wallet scan starts", async ({ page }) => {
+  const PASSWORD = "correct horse battery";
+  await page.goto(`/#xpub=${ZPUB}`);
+  await expect(stat(page, "Total balance")).toHaveText("39,852,779 sats", { timeout: 20_000 });
+  await page.getByRole("button", { name: "Bookmark this wallet" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByPlaceholder("e.g. Savings").fill("Savings");
+  await dialog.getByRole("checkbox", { name: "I understand" }).check();
+  await dialog.getByRole("button", { name: "Save bookmark" }).click();
+  await expect(page.getByRole("button", { name: "Bookmarked" })).toBeVisible();
+
+  // Turn the lock on in the settings
+  await page.goto("/");
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  const panel = page.getByRole("dialog", { name: "Settings" });
+  const lock = panel.getByTestId("wallet-lock-settings");
+  await lock.getByTestId("wallet-lock-enable").click();
+  await expect(lock).toContainText("The password cannot be recovered");
+  await expect(lock).toContainText("It does not protect against malware on this device");
+  await lock.getByTestId("wallet-lock-password").fill(PASSWORD);
+  await lock.getByTestId("wallet-lock-password-repeat").fill(PASSWORD);
+  await lock.getByTestId("wallet-lock-submit").click();
+  await expect(lock.getByTestId("wallet-lock-status")).toContainText("unlocked in this tab", { timeout: 15_000 });
+  await expect(lock.getByTestId("wallet-lock-now")).toBeVisible();
+  expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain(ZPUB);
+
+  // A reload locks again: the row shows the name and script type, never a key
+  await page.reload();
+  await page.getByRole("tab", { name: /Bookmarks/ }).click();
+  const item = page.getByTestId("wallet-bookmark-item");
+  await expect(item).toContainText("Savings");
+  await expect(item).toContainText("p2wpkh");
+  await expect(item).not.toContainText("zpub");
+  const apiCalls: string[] = [];
+  page.on("request", (req) => { if (req.url().includes("wallet-locked")) apiCalls.push(req.url()); });
+  await item.getByRole("button").first().click();
+  const prompt = page.getByTestId("unlock-wallets-prompt");
+  await prompt.getByTestId("unlock-wallets-password").fill("wrong password");
+  await prompt.getByTestId("unlock-wallets-submit").click();
+  await expect(prompt.getByText("Wrong password. Try again.")).toBeVisible({ timeout: 15_000 });
+  await prompt.getByTestId("unlock-wallets-password").fill(PASSWORD);
+  await prompt.getByTestId("unlock-wallets-submit").click();
+  await expect(stat(page, "Total balance")).toHaveText("39,852,779 sats", { timeout: 20_000 });
+  // The URL (history, session restore) and the title hold the placeholder, never the key
+  expect(page.url()).toMatch(/#xpub=wallet-locked%3A[0-9a-f]{16}$/);
+  expect(page.url()).not.toContain(ZPUB);
+  expect(await page.title()).not.toContain("pub");
+
+  // Reloading that URL asks for the password again, then scans
+  await page.reload();
+  const again = page.getByRole("dialog", { name: "Saved wallet keys are locked" });
+  await expect(again.getByTestId("unlock-wallets-prompt")).toBeVisible({ timeout: 15_000 });
+  await again.getByTestId("unlock-wallets-password").fill(PASSWORD);
+  await again.getByTestId("unlock-wallets-submit").click();
+  await expect(stat(page, "Total balance")).toHaveText("39,852,779 sats", { timeout: 20_000 });
+  expect(page.url()).not.toContain(ZPUB);
+  expect(apiCalls).toEqual([]);
+});

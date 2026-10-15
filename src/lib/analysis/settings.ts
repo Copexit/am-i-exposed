@@ -42,6 +42,30 @@ export function clampGapLimit(n: unknown): number {
   return Number.isFinite(v) ? Math.min(MAX_GAP_LIMIT, Math.max(1, v)) : DEFAULT_ANALYSIS_SETTINGS.walletGapLimit;
 }
 
+const intIn = (v: unknown, min: number, max: number, fallback: number): number =>
+  typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, Math.round(v))) : fallback;
+const boolOr = (v: unknown, fallback: boolean): boolean => (typeof v === "boolean" ? v : fallback);
+
+/**
+ * Settings from an untrusted source (localStorage, a backup file): known keys
+ * only, each clamped to the range the settings panel allows, the default on a
+ * wrong type.
+ */
+export function sanitizeAnalysisSettings(raw: unknown): AnalysisSettings {
+  const r = (typeof raw === "object" && raw !== null && !Array.isArray(raw) ? raw : {}) as Record<string, unknown>;
+  const d = DEFAULT_ANALYSIS_SETTINGS;
+  return {
+    maxDepth: intIn(r.maxDepth, 1, 50, d.maxDepth),
+    minSats: intIn(r.minSats, 100, 100000, d.minSats),
+    skipLargeClusters: boolOr(r.skipLargeClusters, d.skipLargeClusters),
+    skipCoinJoins: boolOr(r.skipCoinJoins, d.skipCoinJoins),
+    timeout: intIn(r.timeout, 1, 600, d.timeout),
+    walletGapLimit: typeof r.walletGapLimit === "number" ? clampGapLimit(r.walletGapLimit) : d.walletGapLimit,
+    enableCache: boolOr(r.enableCache, d.enableCache),
+    boltzmannTimeout: intIn(r.boltzmannTimeout, 10, 600, d.boltzmannTimeout),
+  };
+}
+
 /** Slider steps for the gap limit (slider index -> value). */
 export const GAP_LIMIT_STEPS = [1, 2, 3, 5, 10, 15, 20, 30, 50, 75, 100, 150, 200, 300, 500, 750, 1000] as const;
 
@@ -77,10 +101,7 @@ export function getAnalysisSettings(): AnalysisSettings {
   if (!storage) return DEFAULT_ANALYSIS_SETTINGS;
   try {
     const raw = storage.getItem(STORAGE_KEY);
-    cachedSettings = raw
-      ? { ...DEFAULT_ANALYSIS_SETTINGS, ...JSON.parse(raw) }
-      : DEFAULT_ANALYSIS_SETTINGS;
-    cachedSettings = { ...cachedSettings!, walletGapLimit: clampGapLimit(cachedSettings!.walletGapLimit) };
+    cachedSettings = raw ? sanitizeAnalysisSettings(JSON.parse(raw)) : DEFAULT_ANALYSIS_SETTINGS;
   } catch {
     cachedSettings = DEFAULT_ANALYSIS_SETTINGS;
   }

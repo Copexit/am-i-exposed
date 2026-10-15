@@ -4,9 +4,10 @@ import { lazy, Suspense, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 import { useScanner } from "@/hooks/useScanner";
-import type { Bookmark } from "@/hooks/useBookmarks";
+import { matchesInput, type Bookmark } from "@/hooks/useBookmarks";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { XpubPrivacyWarning } from "@/components/wallet/XpubPrivacyWarning";
+import { UnlockWalletsPrompt } from "@/components/history/UnlockWalletsPrompt";
 import { Home } from "@/components/home/Home";
 import { ScanScreen } from "@/components/scan/ScanScreen";
 import { ErrorScreen } from "@/components/flows/ErrorScreen";
@@ -24,6 +25,7 @@ export default function ScannerPage() {
     analysis, wallet, walletActive, recent, bookmarks: bm, inputRef, pendingHash, pendingXpub,
     xpubAddressCount, apiEndpoint, isThirdPartyApi, isLocalApi, ariaStatus,
     handleSubmit, handleBack, handleBroadcastSuccess, handleXpubConfirm, handleXpubCancel,
+    pendingLocked, handleLockedUnlocked, handleLockedCancel,
   } = useScanner();
   const {
     phase, query, inputType, steps, result, txData, addressData,
@@ -184,6 +186,16 @@ export default function ScannerPage() {
         <Suspense fallback={null}><NetworkSwitchToast key={wallet.query} network={wallet.autoSwitchedNetwork} kind="wallet" /></Suspense>
       )}
 
+      {/* A locked wallet opened from the URL (e.g. a reload): the password first, then the scan */}
+      {pendingLocked && (
+        <div role="dialog" aria-modal="true" aria-label={t("walletLock.unlockTitle", { defaultValue: "Saved wallet keys are locked" })}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm">
+            <UnlockWalletsPrompt onUnlocked={handleLockedUnlocked} onCancel={handleLockedCancel} />
+          </div>
+        </div>
+      )}
+
       {pendingXpub && (
         <XpubPrivacyWarning
           addressCount={xpubAddressCount}
@@ -199,6 +211,6 @@ export default function ScannerPage() {
 
 /** The name ("" when unnamed) of the wallet bookmark for `input`, or undefined when it is not bookmarked. */
 function walletBookmarkName(bookmarks: Bookmark[], input: string): string | undefined {
-  const b = bookmarks.find((x) => x.type === "wallet" && x.input === input);
+  const b = bookmarks.find((x) => x.type === "wallet" && matchesInput(x, input));
   return b && (b.label ?? "");
 }

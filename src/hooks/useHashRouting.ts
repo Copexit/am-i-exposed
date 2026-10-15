@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { isXpubPrivacyAcked } from "@/components/wallet/XpubPrivacyWarning";
 import { useNetwork } from "@/context/NetworkContext";
+import { isPlaceholder } from "@/lib/backup/wallet-vault";
+import { resolvePlaceholder } from "@/hooks/walletVault";
 
 const subscribeNoop = () => () => {};
 
@@ -13,6 +15,8 @@ interface HashRoutingCallbacks {
   walletReset: () => void;
   isThirdPartyApi: boolean;
   setPendingXpub: (xpub: string | null) => void;
+  /** A locked wallet's placeholder in the hash, waiting for the wallet lock's password */
+  setPendingLocked: (placeholder: string | null) => void;
 }
 
 interface HashRoutingResult {
@@ -36,6 +40,7 @@ export function useHashRouting(callbacks: HashRoutingCallbacks): HashRoutingResu
   const walletResetRef = useRef(callbacks.walletReset);
   const isThirdPartyRef = useRef(callbacks.isThirdPartyApi);
   const setPendingXpubRef = useRef(callbacks.setPendingXpub);
+  const setPendingLockedRef = useRef(callbacks.setPendingLocked);
 
   useEffect(() => {
     analyzeRef.current = callbacks.analyze;
@@ -44,6 +49,7 @@ export function useHashRouting(callbacks: HashRoutingCallbacks): HashRoutingResu
     walletResetRef.current = callbacks.walletReset;
     isThirdPartyRef.current = callbacks.isThirdPartyApi;
     setPendingXpubRef.current = callbacks.setPendingXpub;
+    setPendingLockedRef.current = callbacks.setPendingLocked;
   });
 
   // Wait for both the local API probe and Tor detection to settle before
@@ -91,11 +97,21 @@ export function useHashRouting(callbacks: HashRoutingCallbacks): HashRoutingResu
       const txid = params.get("tx");
       const addr = params.get("addr");
       const check = params.get("check");
-      const xpub = params.get("xpub");
+      let xpub = params.get("xpub");
 
       // Handle xpub/descriptor via wallet analysis flow
       if (xpub) {
         initialHashProcessedRef.current = true;
+        // A locked bookmark's placeholder: its key from the vault, after the password while locked
+        if (isPlaceholder(xpub)) {
+          const key = resolvePlaceholder(xpub);
+          if (!key) {
+            setPendingLockedRef.current(xpub);
+            setPendingHashDismissed(true);
+            return;
+          }
+          xpub = key;
+        }
         // Guard: show privacy warning if using a third-party API
         if (isThirdPartyRef.current && !isXpubPrivacyAcked()) {
           setPendingXpubRef.current(xpub);
