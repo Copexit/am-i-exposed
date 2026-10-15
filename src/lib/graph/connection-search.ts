@@ -22,8 +22,8 @@ export type ConnectionKind = "direct" | "a-funds-b" | "b-funds-a" | "shared-ance
  * inIndex is the vin linking this tx to its funding neighbour on the path,
  * outIndex the vout linking it to its spending neighbour (undefined where the
  * path has no such neighbour, e.g. inIndex at a linear path's start). The
- * pivot of a bent path carries only its link to the A-side neighbour; the
- * B-side link is on the next hop.
+ * pivot of a bent path carries its link to the A-side neighbour here; its
+ * link to the B-side neighbour is in `ConnectionPath.pivotLink`.
  */
 export interface PathHop { txid: string; inIndex?: number; outIndex?: number }
 
@@ -34,6 +34,17 @@ export interface ConnectionPath {
   meetTxid: string;
   /** Index of the meet tx in `hops`, set for shared-ancestor and shared-descendant. */
   pivot?: number;
+  /**
+   * The meet tx's link toward the B-side neighbour, set with `pivot`, chain meaning:
+   * shared-ancestor: `outIndex` is the pivot's vout spent toward B;
+   * shared-descendant: `inIndex` is the pivot's vin funded from the B side.
+   */
+  pivotLink?: { inIndex?: number; outIndex?: number };
+  /**
+   * Set when stopAtCoinJoins is on but an interior hop (the meet tx) could not be
+   * fetched (budget, time or fetch error), so it was not checked for CoinJoin.
+   */
+  unverified?: true;
 }
 
 export interface ConnectionSearchOptions {
@@ -41,6 +52,7 @@ export interface ConnectionSearchOptions {
   maxTxs: number;
   timeoutMs: number;
   stopAtCoinJoins: boolean;
+  /** Txs with more outputs (searching forward) or more inputs (searching backward) are not expanded. */
   branchCap: number;
   concurrency?: number;
   /** Clock override for tests; defaults to performance.now(). */
@@ -63,6 +75,8 @@ export interface SearchSummary {
   stoppedBy: "done" | "hops" | "budget" | "time" | "aborted";
   branchLimited: number;
   coinJoinStops: number;
+  /** Failed getTransaction and getTxOutspends calls; each was treated as a chain end, so results may be incomplete. */
+  fetchErrors: number;
 }
 
 const MAX_PER_KIND = 5;
@@ -98,6 +112,7 @@ export async function findConnections(
   const coinJoins = new Set<string>();
   const branchLimited = new Set<string>();
   let txsFetched = 0;
+  let fetchErrors = 0;
   let stop: Stop | null = null;
 
   function checkStop(): boolean {
@@ -131,13 +146,13 @@ export async function findConnections(
       txs.set(txid, await fetcher.getTransaction(txid));
       failed.delete(txid);
     } catch {
-      // Unfetchable: a natural end
+      fetchErrors++;
     }
     if (signal?.aborted) stop = "aborted";
   }
 
   const summary = (stoppedBy: SearchSummary["stoppedBy"]): SearchSummary => ({
-    txsFetched, stoppedBy, branchLimited: branchLimited.size, coinJoinStops: coinJoins.size,
+    txsFetched, stoppedBy, branchLimited: branchLimited.size, coinJoinStops: coinJoins.size, fetchErrors,
   });
 
   if (from.length === 0 || to.length === 0) return summary("done");
@@ -183,6 +198,7 @@ export async function findConnections(
   function buildPath(kind: ConnectionKind, m: string): ConnectionPath | null {
     let hops: PathHop[];
     let pivot: number | undefined;
+    let pivotLink: PathHop | undefined;
     if (kind === "a-funds-b" || kind === "b-funds-a") {
       const [fwd, bwd] = kind === "a-funds-b" ? [fA, bB] : [fB, bA];
       const head = chainHops(fwd, m);
@@ -192,15 +208,21 @@ export async function findConnections(
       if (hops.length === 2) kind = "direct";
     } else if (kind === "shared-ancestor") {
       const aHalf = chainHops(bA, m).reverse();
-      hops = [...aHalf, ...chainHops(bB, m).slice(1)];
+      const bHalf = chainHops(bB, m);
+      hops = [...aHalf, ...bHalf.slice(1)];
       pivot = aHalf.length - 1;
+      pivotLink = bHalf[0];
     } else {
       const aHalf = chainHops(fA, m);
-      hops = [...aHalf, ...chainHops(fB, m).reverse().slice(1)];
+      const bHalf = chainHops(fB, m).reverse();
+      hops = [...aHalf, ...bHalf.slice(1)];
       pivot = aHalf.length - 1;
+      pivotLink = bHalf[0];
     }
     if (hops.length < 2 || new Set(hops.map((h) => h.txid)).size !== hops.length) return null;
-    return pivot === undefined ? { kind, hops, meetTxid: m } : { kind, hops, meetTxid: m, pivot };
+    if (pivot === undefined || !pivotLink) return { kind, hops, meetTxid: m };
+    const { txid: _pivotTxid, ...link } = pivotLink;
+    return { kind, hops, meetTxid: m, pivot, pivotLink: link };
   }
 
   const pending: ConnectionPath[] = [];
@@ -238,16 +260,15 @@ export async function findConnections(
     for (const path of batch) {
       const n = emitted.get(path.kind) ?? 0;
       if (n >= MAX_PER_KIND) continue;
-      if (options.stopAtCoinJoins && path.hops.slice(1, -1).some((h) => isCoinJoinTx(h.txid))) continue;
+      if (options.stopAtCoinJoins) {
+        const interior = path.hops.slice(1, -1).map((h) => txs.get(h.txid));
+        if (interior.some((tx) => tx && callbacks.isCoinJoin(tx))) continue;
+        // Never fetched (budget, time or error): emit, but flag it as not checked
+        if (interior.includes(undefined)) path.unverified = true;
+      }
       emitted.set(path.kind, n + 1);
       callbacks.onResult(path);
     }
-  }
-
-  function isCoinJoinTx(txid: string): boolean {
-    const tx = txs.get(txid);
-    // ponytail: an unfetched meet (budget ran out) is treated as not a CoinJoin
-    return tx !== undefined && callbacks.isCoinJoin(tx);
   }
 
   async function expand(side: Side): Promise<void> {
@@ -277,7 +298,7 @@ export async function findConnections(
         try {
           outspends.set(t, await fetcher.getTxOutspends(t));
         } catch {
-          // Treat as no known spends
+          fetchErrors++;
         }
         if (signal?.aborted) stop = "aborted";
       });
@@ -325,8 +346,10 @@ export async function findConnections(
   }
 
   if (stop === "aborted" || signal?.aborted) return summary("aborted");
+  // A budget or time stop hit only while checking meets in this last flush does not change why the search ended
+  const searchStop = stop;
   await flush();
-  if (stop) return summary(stop);
   if (signal?.aborted) return summary("aborted");
+  if (searchStop) return summary(searchStop);
   return summary(sides.some((s) => s.frontier.length > 0) ? "hops" : "done");
 }

@@ -134,6 +134,7 @@ describe("findConnections", () => {
         hops: [{ txid: "A", inIndex: 0 }, { txid: "P", outIndex: 0 }, { txid: "B", inIndex: 0 }],
         meetTxid: "P",
         pivot: 1,
+        pivotLink: { outIndex: 1 },
       },
     ]);
   });
@@ -147,6 +148,7 @@ describe("findConnections", () => {
         hops: [{ txid: "A", outIndex: 0 }, { txid: "M", inIndex: 1 }, { txid: "B", outIndex: 0 }],
         meetTxid: "M",
         pivot: 1,
+        pivotLink: { inIndex: 0 },
       },
     ]);
   });
@@ -183,6 +185,28 @@ describe("findConnections", () => {
     const through = await run(spec, ["A"], ["B"], { stopAtCoinJoins: false }, ["CJ"]);
     expect(through.results.map(ids)).toEqual([["A", "CJ", "X", "B"]]);
     expect(through.summary.coinJoinStops).toBe(0);
+  });
+
+  it("flags a path whose meet tx could not be checked for CoinJoin, without fetching past the budget", async () => {
+    const spec: Spec = { A: {}, CJ: { ins: ["A:0"] }, B: { ins: ["CJ:0"] } };
+    const { results, summary, stats } = await run(spec, ["A"], ["B"], { maxTxs: 2 }, ["CJ"]);
+    expect(stats.txCalls).toBeLessThanOrEqual(2);
+    expect(results.map((r) => [ids(r), r.unverified])).toEqual([[["A", "CJ", "B"], true]]);
+    expect(summary.stoppedBy).toBe("budget");
+
+    const checked = await run(spec, ["A"], ["B"], {}, ["CJ"]);
+    expect(checked.results).toEqual([]);
+  });
+
+  it("counts failed transaction and outspends fetches", async () => {
+    // B spends an output of Z, which the fetcher cannot find; A's outspends call fails
+    const { fetcher } = chain({ A: {}, B: { ins: ["Z:0"] } });
+    const summary = await findConnections(["A"], ["B"], {
+      getTransaction: (txid) => fetcher.getTransaction(txid),
+      getTxOutspends: (txid) => (txid === "A" ? Promise.reject(new Error("429")) : fetcher.getTxOutspends(txid)),
+    }, DEFAULT_CONNECTION_OPTIONS, { onResult: () => {}, isCoinJoin: () => false });
+    expect(summary.fetchErrors).toBe(2);
+    expect(summary.stoppedBy).toBe("done");
   });
 
   it("does not expand transactions wider than branchCap", async () => {
