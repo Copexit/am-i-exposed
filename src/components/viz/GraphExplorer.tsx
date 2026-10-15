@@ -7,6 +7,9 @@ import { useTranslation } from "react-i18next";
 import { useChartTooltip } from "./shared/ChartTooltip";
 import { useFullscreen } from "@/hooks/useFullscreen";
 import { useGraphBoltzmann } from "@/hooks/useGraphBoltzmann";
+import { useConnectionSearch } from "@/hooks/useConnectionSearch";
+import type { ConnectionPath } from "@/lib/graph/connection-search";
+import { ConnectionPanel } from "./graph/ConnectionPanel";
 import { GraphSidebar } from "./graph/GraphSidebar";
 import { MAX_ZOOM, MIN_ZOOM } from "./graph/constants";
 import {
@@ -55,6 +58,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
     nodePositionOverrides, annotations, annotateMode, nodeLabels, edgeLabels,
     viewTransform, edgeMode, heatMapActive, heatMap, heatProgress,
     fingerprintMode, changeOutputs, visibleCount,
+    connection, pickMode, highlightTxids,
   } = state;
 
   const linkabilityEdgeMode = edgeMode === "linkability";
@@ -151,6 +155,18 @@ export function GraphExplorer(props: GraphExplorerProps) {
   });
 
   const hasLinkability = !!props.rootBoltzmannResult || boltzmannCache.size > 0;
+
+  // ─── Find connection ───────────────────────────────────
+  const connectionSearch = useConnectionSearch(graph.fetcher);
+  const { addPath } = graph;
+  const openConnection = useCallback((from?: string) => {
+    dispatch({ type: "OPEN_CONNECTION", from: from ?? graph.expandedNodeTxid ?? graph.rootTxid });
+  }, [dispatch, graph.expandedNodeTxid, graph.rootTxid]);
+  const handleAddPath = useCallback(async (path: ConnectionPath) => {
+    const result = await addPath(path, connectionSearch.txs);
+    dispatch({ type: "SET_HIGHLIGHT", txids: new Set(path.hops.map((h) => h.txid)) });
+    return result;
+  }, [addPath, connectionSearch.txs, dispatch]);
   const cycleEdgeMode = useCallback(() => {
     dispatch({ type: "CYCLE_EDGE_MODE", hasLinkability });
   }, [hasLinkability, dispatch]);
@@ -245,6 +261,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); tbHandlersRef.current.save?.(); return; }
+      if (e.key === "Escape" && pickMode) { dispatch({ type: "SET_PICK_MODE", active: false }); return; }
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         if (e.key === "Escape") (e.target as HTMLElement).blur();
         return;
@@ -269,7 +286,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [handleToggleHeatMap, handleToggleFingerprint, cycleEdgeMode, isExpanded, collapseFullscreen, handleExpandFullscreen, undo, reset, zoomBy, handleFitView, dispatch]);
+  }, [handleToggleHeatMap, handleToggleFingerprint, cycleEdgeMode, isExpanded, collapseFullscreen, handleExpandFullscreen, undo, reset, zoomBy, handleFitView, dispatch, pickMode]);
 
   // Compact inline: canvas height fits the laid-out graph (260-500px).
   const compactHeight = useMemo(() => {
@@ -297,14 +314,24 @@ export function GraphExplorer(props: GraphExplorerProps) {
     onRegisterHandlers: (handlers: Record<string, () => void>) => { tbHandlersRef.current = handlers; },
     annotateMode, onToggleAnnotateMode: () => dispatch({ type: "TOGGLE_ANNOTATE_MODE" }),
     nodePositionOverrides, annotations, nodeLabels, edgeLabels,
+    onFindConnection: graph.fetcher ? () => openConnection() : undefined,
+    findConnectionOpen: !!connection,
   };
+
+  // Any canvas click ends the highlight; in pick mode a node click sets To instead
+  const clearHighlight = () => dispatch({ type: "SET_HIGHLIGHT", txids: new Set() });
 
   const canvasProps = {
     nodes: graph.nodes, rootTxid: graph.rootTxid, rootTxids: graph.rootTxids,
     walletUtxos: props.walletUtxos, loading: graph.loading,
     nodeCount: graph.nodeCount, maxNodes: graph.maxNodes,
     onCollapse: graph.collapse, rootBoltzmannResult: props.rootBoltzmannResult,
-    expandedNodeTxid: graph.expandedNodeTxid, onToggleExpand: graph.toggleExpand,
+    expandedNodeTxid: graph.expandedNodeTxid,
+    onToggleExpand: (txid: string) => {
+      clearHighlight();
+      if (pickMode) dispatch({ type: "PICK_NODE", txid });
+      else void graph.toggleExpand(txid);
+    },
     outspendCache: graph.outspendCache,
     onExpandInput: handleExpandInput,
     onExpandOutput: handleExpandOutput,
@@ -313,8 +340,11 @@ export function GraphExplorer(props: GraphExplorerProps) {
     tooltip, scrollRef, filter, hoveredNode,
     setHoveredNode: (txid: string | null) => dispatch({ type: "SET_HOVERED_NODE", txid }),
     selectedNode,
-    setSelectedNode: (node: { txid: string; x: number; y: number } | null) => dispatch({ type: "SET_SELECTED_NODE", node }),
-    focusedNode,
+    setSelectedNode: (node: { txid: string; x: number; y: number } | null) => {
+      if (!node) clearHighlight();
+      dispatch({ type: "SET_SELECTED_NODE", node });
+    },
+    focusedNode, highlightTxids,
     setFocusedNode: (txid: string | null) => dispatch({ type: "SET_FOCUSED_NODE", txid }),
     heatMap, heatMapActive, linkabilityEdgeMode, fingerprintMode, entropyGradientMode,
     changeOutputs, onLayoutComplete, boltzmannCache,
@@ -329,6 +359,20 @@ export function GraphExplorer(props: GraphExplorerProps) {
       onToggleFilter={(key: keyof NodeFilter) => dispatch({ type: "TOGGLE_FILTER", key })}
       fingerprintMode={fingerprintMode}
       changeOutputs={changeOutputs}
+    />
+  );
+
+  const connectionPanel = connection && (
+    <ConnectionPanel
+      from={connection.from}
+      to={connection.to}
+      onFieldChange={(field, value) => dispatch({ type: "SET_CONNECTION_FIELD", field, value })}
+      pickMode={pickMode}
+      onTogglePick={() => dispatch({ type: "SET_PICK_MODE", active: !pickMode })}
+      onClose={() => { connectionSearch.reset(); dispatch({ type: "CLOSE_CONNECTION" }); }}
+      search={connectionSearch}
+      boltzmannCache={boltzmannCache}
+      onAddPath={handleAddPath}
     />
   );
 
@@ -374,6 +418,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
           onCancelAutoTrace={props.noAutoTrace ? undefined : graph.cancelAutoTrace}
           autoTraceStop={graph.lastAutoTraceStop}
           onSetAsRoot={props.onSetAsRoot}
+          onFindConnection={graph.fetcher ? openConnection : undefined}
         />
       </AnimatePresence>
     );
@@ -397,7 +442,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
         <GraphViewport
           canvasProps={canvasProps} viewTransform={viewTransform} onViewTransformChange={setViewTransform}
           isFullscreen showSidebar={showSidebar} scrollRef={scrollRef}
-          legend={legend} tooltipContent={tooltipContent} sidebar={renderSidebar("af-")}
+          legend={<>{legend}{connectionPanel}</>} tooltipContent={tooltipContent} sidebar={renderSidebar("af-")}
           outerStyle={{ touchAction: "none" }}
         />
         {lastError && <div className="text-xs text-severity-medium/80 px-4 pb-2">{lastError}</div>}
@@ -418,7 +463,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
             <GraphViewport
               canvasProps={canvasProps} viewTransform={viewTransform} onViewTransformChange={setViewTransform}
               showSidebar={showSidebar} scrollRef={scrollRef}
-              legend={compact ? null : legend} tooltipContent={tooltipContent} sidebar={renderSidebar("")}
+              legend={<>{compact ? null : legend}{connectionPanel}</>} tooltipContent={tooltipContent} sidebar={renderSidebar("")}
               scrollClassName={compactHeight ? "overflow-hidden h-full -mx-4 px-4" : "overflow-hidden h-[500px] -mx-4 px-4"}
               outerStyle={{ touchAction: "none" }}
             />
@@ -465,7 +510,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
           <GraphViewport
             canvasProps={canvasProps} viewTransform={viewTransform} onViewTransformChange={setViewTransform}
             isFullscreen showSidebar={showSidebar} scrollRef={scrollRef}
-            legend={legend} tooltipContent={tooltipContent} sidebar={renderSidebar("fs-")}
+            legend={<>{legend}{connectionPanel}</>} tooltipContent={tooltipContent} sidebar={renderSidebar("fs-")}
             outerStyle={{ touchAction: "none" }}
           />
         </div>,

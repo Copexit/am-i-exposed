@@ -39,6 +39,7 @@ export function GraphCanvas({
   selectedNode,
   setSelectedNode,
   focusedNode,
+  highlightTxids,
   setFocusedNode,
   heatMap,
   heatMapActive,
@@ -434,6 +435,7 @@ export function GraphCanvas({
             hoveredNode={hoveredNode}
             hoveredEdges={hoveredEdges}
             focusedNode={focusedNode}
+            highlightTxids={highlightTxids}
             focusSpotlight={focusSpotlight}
             expandedNodeTxid={expandedNodeTxid ?? null}
             heatMapActive={heatMapActive}

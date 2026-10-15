@@ -56,6 +56,8 @@ export type GraphAction =
   | { type: "SET_MULTI_ROOT_WITH_LAYERS"; roots: Map<string, MultiRootEntry>; preExpandBudget?: number }
   | { type: "LOAD_GRAPH"; nodes: Map<string, GraphNode>; rootTxid: string; rootTxids: Set<string> }
   | { type: "ADD_NODE"; node: GraphNode }
+  /** A batch as one undo step; `root` (if set) joins rootTxids as an extra root. */
+  | { type: "ADD_NODES"; nodes: GraphNode[]; root?: string }
   | { type: "REMOVE_NODE"; txid: string }
   | { type: "SET_LOADING"; txid: string; loading: boolean }
   | { type: "SET_ERROR"; txid: string; error: string }
@@ -64,10 +66,10 @@ export type GraphAction =
   | { type: "UNDO" };
 
 export interface GraphExpansionFetcher {
-  getTransaction(txid: string): Promise<MempoolTransaction>;
-  getTxOutspends(txid: string): Promise<MempoolOutspend[]>;
+  getTransaction(txid: string, signal?: AbortSignal): Promise<MempoolTransaction>;
+  getTxOutspends(txid: string, signal?: AbortSignal): Promise<MempoolOutspend[]>;
   /** Optional: used as fallback when outspends endpoint is unavailable. */
-  getAddressTxs?(address: string): Promise<MempoolTransaction[]>;
+  getAddressTxs?(address: string, maxPages?: number): Promise<MempoolTransaction[]>;
 }
 
 // ---- Constants -------------------------------------------------------------
@@ -185,6 +187,21 @@ export function graphReducer(state: GraphState, action: GraphAction): GraphState
       const nodes = new Map(state.nodes);
       nodes.set(action.node.txid, action.node);
       return { ...state, nodes, undoStack: pushUndo(state) };
+    }
+
+    case "ADD_NODES": {
+      // Nodes come in dependency order: one whose edge target is missing (cut by maxNodes) is skipped
+      const nodes = new Map(state.nodes);
+      for (const node of action.nodes) {
+        if (nodes.size >= state.maxNodes) break;
+        if (nodes.has(node.txid)) continue;
+        if (node.parentEdge && !nodes.has(node.parentEdge.fromTxid)) continue;
+        if (node.childEdge && !nodes.has(node.childEdge.toTxid)) continue;
+        nodes.set(node.txid, node);
+      }
+      if (nodes.size === state.nodes.size) return state;
+      const rootTxids = action.root && nodes.has(action.root) ? new Set(state.rootTxids).add(action.root) : state.rootTxids;
+      return { ...state, nodes, rootTxids, undoStack: pushUndo(state) };
     }
 
     case "REMOVE_NODE": {

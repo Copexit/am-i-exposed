@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Search, Loader2, Pencil } from "lucide-react";
+import { Search, Loader2, Pencil, Route } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { truncateId, TXID_RE } from "@/lib/constants";
 import { HeatIcon, FingerprintIcon, GraphIcon, UndoIcon, ResetIcon } from "./icons";
@@ -53,6 +53,9 @@ interface GraphToolbarProps {
   annotations?: GraphAnnotation[];
   nodeLabels?: Map<string, string>;
   edgeLabels?: Map<string, string>;
+  /** Opens the Find connection panel. */
+  onFindConnection?: () => void;
+  findConnectionOpen?: boolean;
   /** Inline (non-fullscreen) shows only node count, undo/reset and fullscreen. */
   compact?: boolean;
 }
@@ -267,6 +270,22 @@ export function GraphToolbar(props: GraphToolbarProps) {
             <Pencil size={12} />
             <span className="hidden sm:inline">{t("graph.annotateLabel", { defaultValue: "Annotate" })}</span>
           </span>
+        </button>
+      )}
+
+      {props.onFindConnection && (
+        <button
+          onClick={props.onFindConnection}
+          aria-pressed={!!props.findConnectionOpen}
+          className={`${btnBase} ${
+            props.findConnectionOpen
+              ? "text-bitcoin border-bitcoin/30 bg-bitcoin/10"
+              : "text-muted hover:text-foreground border-card-border"
+          }`}
+          title={t("graph.connection.title", { defaultValue: "Find connection" })}
+          aria-label={t("graph.connection.title", { defaultValue: "Find connection" })}
+        >
+          <Route size={12} />
         </button>
       )}
 

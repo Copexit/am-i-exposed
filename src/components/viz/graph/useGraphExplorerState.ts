@@ -52,6 +52,13 @@ export interface GraphExplorerState {
 
   // Layout info
   visibleCount: number;
+
+  // Find connection panel (null = closed)
+  connection: { from: string; to: string } | null;
+  /** The next node click sets the connection's To. */
+  pickMode: boolean;
+  /** Transient focus-ring set (an added path), cleared by the next canvas click. */
+  highlightTxids: Set<string>;
 }
 
 // ─── Actions ────────────────────────────────────────────────────────
@@ -85,7 +92,13 @@ type GraphExplorerAction =
   | { type: "MERGE_CHANGE_OUTPUTS"; keys: Set<string>; userToggled: Set<string> }
   | { type: "SET_VISIBLE_COUNT"; count: number }
   | { type: "RESTORE_SAVED_GRAPH"; graph: SavedGraph }
-  | { type: "CLEAR_FULLSCREEN" };
+  | { type: "CLEAR_FULLSCREEN" }
+  | { type: "OPEN_CONNECTION"; from: string }
+  | { type: "CLOSE_CONNECTION" }
+  | { type: "SET_CONNECTION_FIELD"; field: "from" | "to"; value: string }
+  | { type: "SET_PICK_MODE"; active: boolean }
+  | { type: "PICK_NODE"; txid: string }
+  | { type: "SET_HIGHLIGHT"; txids: Set<string> };
 
 // ─── Reducer ────────────────────────────────────────────────────────
 
@@ -195,6 +208,19 @@ function graphExplorerReducer(state: GraphExplorerState, action: GraphExplorerAc
       };
     case "CLEAR_FULLSCREEN":
       return { ...state, selectedNode: null, viewTransform: { x: 0, y: 0, scale: 1 } };
+    case "OPEN_CONNECTION":
+      // From follows the node it was opened from; an open panel keeps its To
+      return { ...state, connection: { from: action.from, to: state.connection?.to ?? "" } };
+    case "CLOSE_CONNECTION":
+      return { ...state, connection: null, pickMode: false };
+    case "SET_CONNECTION_FIELD":
+      return state.connection ? { ...state, connection: { ...state.connection, [action.field]: action.value } } : state;
+    case "SET_PICK_MODE":
+      return { ...state, pickMode: action.active && !!state.connection };
+    case "PICK_NODE":
+      return state.connection ? { ...state, pickMode: false, connection: { ...state.connection, to: action.txid } } : state;
+    case "SET_HIGHLIGHT":
+      return state.highlightTxids.size === 0 && action.txids.size === 0 ? state : { ...state, highlightTxids: action.txids };
     default:
       return state;
   }
@@ -222,6 +248,9 @@ function createInitialState(_alwaysFullscreen?: boolean): GraphExplorerState {
     fingerprintMode: false,
     changeOutputs: new Set(),
     visibleCount: 0,
+    connection: null,
+    pickMode: false,
+    highlightTxids: new Set(),
   };
 }
 

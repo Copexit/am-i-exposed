@@ -29,6 +29,7 @@ type GraphNodeRendererProps = Omit<NodeLabelAnnotationProps, "node"> & {
   hoveredNode: string | null;
   hoveredEdges: Set<string> | null;
   focusedNode: string | null;
+  highlightTxids?: Set<string>;
   focusSpotlight: { nodes: Set<string>; edges: Set<string> } | null;
   expandedNodeTxid: string | null | undefined;
   heatMapActive: boolean;
@@ -70,6 +71,7 @@ export function GraphNodeRenderer({
   hoveredNode,
   hoveredEdges,
   focusedNode,
+  highlightTxids,
   focusSpotlight,
   expandedNodeTxid,
   heatMapActive,
@@ -120,7 +122,7 @@ export function GraphNodeRenderer({
   const color = getNodeColor(node, heatScore);
   const totalValue = node.tx.vout.reduce((s, o) => s + o.value, 0);
   const isHovered = hoveredNode === node.txid;
-  const isFocused = focusedNode === node.txid;
+  const isFocused = focusedNode === node.txid || !!highlightTxids?.has(node.txid);
   const isDimmedByHover = hoveredNode && !isHovered
     && !hoveredEdges?.has(`e-${hoveredNode}-${node.txid}`)
     && !hoveredEdges?.has(`e-${node.txid}-${hoveredNode}`);

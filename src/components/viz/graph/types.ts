@@ -192,6 +192,8 @@ export interface GraphCanvasProps {
   selectedNode: { txid: string; x: number; y: number } | null;
   setSelectedNode: (node: { txid: string; x: number; y: number } | null) => void;
   focusedNode: string | null;
+  /** Extra nodes drawn with the focus ring (an added connection path). */
+  highlightTxids?: Set<string>;
   setFocusedNode: (txid: string | null) => void;
   heatMap: Map<string, ScoringResult>;
   heatMapActive: boolean;
