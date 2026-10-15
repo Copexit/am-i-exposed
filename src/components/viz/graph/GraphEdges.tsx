@@ -236,6 +236,7 @@ function GraphEdge({
   unbundledPairs,
   onToggleBundle,
 }: GraphEdgeProps) {
+  const { t } = useTranslation();
   const edgeKey = `e-${edge.fromTxid}-${edge.toTxid}`;
 
   // Resolve paths (primary + extra consolidation paths, or one bundled path)
@@ -341,7 +342,7 @@ function GraphEdge({
           fillOpacity={isDimmedByHover ? 0.15 : 0.85}
           style={{ pointerEvents: "none" as const }}
         >
-          {`${edge.consolidationCount} outputs`}
+          {t("graph.edgeOutputs", { count: edge.consolidationCount, defaultValue: "{{count}} outputs" })}
         </Text>
       )}
       {/* Deterministic link badge (100%) - only for multi-input txs */}
