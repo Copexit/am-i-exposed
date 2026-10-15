@@ -59,6 +59,8 @@ export type GraphAction =
   /** A batch as one undo step; `root` (if set) joins rootTxids as an extra root. */
   | { type: "ADD_NODES"; nodes: GraphNode[]; root?: string }
   | { type: "REMOVE_NODE"; txid: string }
+  /** Several removals as one undo step; roots are never removed. */
+  | { type: "REMOVE_NODES"; txids: string[] }
   | { type: "SET_LOADING"; txid: string; loading: boolean }
   | { type: "SET_ERROR"; txid: string; error: string }
   | { type: "CLEAR_ERROR"; txid: string }
@@ -209,6 +211,16 @@ export function graphReducer(state: GraphState, action: GraphAction): GraphState
       if (!state.nodes.has(action.txid)) return state;
       const nodes = new Map(state.nodes);
       nodes.delete(action.txid);
+      cascadeRemoveUnreachable(nodes, state.rootTxids);
+      return { ...state, nodes, undoStack: pushUndo(state) };
+    }
+
+    case "REMOVE_NODES": {
+      const nodes = new Map(state.nodes);
+      for (const txid of action.txids) {
+        if (!state.rootTxids.has(txid)) nodes.delete(txid);
+      }
+      if (nodes.size === state.nodes.size) return state;
       cascadeRemoveUnreachable(nodes, state.rootTxids);
       return { ...state, nodes, undoStack: pushUndo(state) };
     }

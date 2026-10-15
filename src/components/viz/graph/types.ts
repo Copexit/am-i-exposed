@@ -221,6 +221,13 @@ export interface GraphCanvasProps {
   }) => void;
   /** Boltzmann results for any node (not just root). Keyed by txid. */
   boltzmannCache?: Map<string, BoltzmannWorkerResult>;
+  /** Multi-selected txids (drawn with the selection outline). */
+  selection?: Set<string>;
+  /** Toggles a node's selection; a modifier-click (or any tap in select mode) calls it instead of opening the node. */
+  onToggleSelect?: (txid: string) => void;
+  selectMode?: boolean;
+  /** Txids left out of the layout (manual hides, outside an isolate). */
+  excludedTxids?: ReadonlySet<string>;
 }
 
 export interface MinimapProps {

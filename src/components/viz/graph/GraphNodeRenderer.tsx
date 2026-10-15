@@ -30,6 +30,8 @@ type GraphNodeRendererProps = Omit<NodeLabelAnnotationProps, "node"> & {
   hoveredEdges: Set<string> | null;
   focusedNode: string | null;
   highlightTxids?: Set<string>;
+  /** In the multi-selection: drawn with a solid outline. */
+  isSelected?: boolean;
   focusSpotlight: { nodes: Set<string>; edges: Set<string> } | null;
   expandedNodeTxid: string | null | undefined;
   heatMapActive: boolean;
@@ -47,7 +49,7 @@ type GraphNodeRendererProps = Omit<NodeLabelAnnotationProps, "node"> & {
   onToggleExpand?: (txid: string) => void;
   onExpandPortInput?: (txid: string, inputIndex: number) => void;
   onExpandPortOutput?: (txid: string, outputIndex: number) => void;
-  handleNodeClick: (node: LayoutNode, currentSelectedTxid: string | null) => void;
+  handleNodeClick: (node: LayoutNode, currentSelectedTxid: string | null, e?: React.MouseEvent) => void;
   handleNodeDoubleClick: (node: LayoutNode) => void;
   handleNodeMouseDown: (e: React.MouseEvent, node: LayoutNode) => void;
   handleNodeTouchStart?: (e: React.TouchEvent, node: LayoutNode) => void;
@@ -72,6 +74,7 @@ export function GraphNodeRenderer({
   hoveredEdges,
   focusedNode,
   highlightTxids,
+  isSelected,
   focusSpotlight,
   expandedNodeTxid,
   heatMapActive,
@@ -139,12 +142,21 @@ export function GraphNodeRenderer({
   if (focusSpotlight && !focusSpotlight.nodes.has(node.txid)) nodeOpacity = 0.15;
   else if (isDimmedByHover && !isConnectedToHovered) nodeOpacity = 0.3;
 
+  // Multi-selection outline: the foreground token, solid (the focus ring is orange and dashed)
+  const selectionOutline = isSelected && (
+    <rect
+      x={node.x - 5} y={node.y - 5} width={node.width + 10} height={node.height + 10} rx={12}
+      fill="none" stroke={SVG_COLORS.foreground} strokeWidth={2} style={{ pointerEvents: "none" }}
+    />
+  );
+
   // Render expanded node with UTXO ports (spring morph animation)
   if (isExpandedNode) {
     return (
       <motion.g
         key={node.txid}
         data-txid={node.txid}
+        data-selected={isSelected || undefined}
         initial={{ opacity: 0, scale: 0.92 }}
         animate={{ opacity: nodeOpacity, scale: 1 }}
         transition={{ type: "spring", stiffness: 300, damping: 25, mass: 0.8 }}
@@ -159,11 +171,12 @@ export function GraphNodeRenderer({
           onHoverPort={setHoveredPort}
           onExpandInput={onExpandPortInput ?? onExpandInput}
           onExpandOutput={onExpandPortOutput ?? onExpandOutput}
-          onNodeClick={() => { if (!justDraggedRef.current) handleNodeClick(node, selectedNode?.txid ?? null); }}
+          onNodeClick={(e) => { if (!justDraggedRef.current) handleNodeClick(node, selectedNode?.txid ?? null, e); }}
           onMouseDown={(e: React.MouseEvent) => handleNodeMouseDown(e, node)}
           onTouchStart={handleNodeTouchStart ? (e: React.TouchEvent) => handleNodeTouchStart(e, node) : undefined}
           atCapacity={atCapacity}
         />
+        {selectionOutline}
       </motion.g>
     );
   }
@@ -172,6 +185,7 @@ export function GraphNodeRenderer({
     <motion.g
       key={node.txid}
       data-txid={node.txid}
+      data-selected={isSelected || undefined}
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: nodeOpacity, scale: 1 }}
       transition={{ duration: 0.3 }}
@@ -214,7 +228,7 @@ export function GraphNodeRenderer({
         strokeWidth={isHovered ? 2.5 : (node.isRoot ? 2.5 : 1.5)}
         strokeOpacity={isHovered || node.isRoot ? 1 : 0.6}
         filter={node.isRoot ? "url(#glow-medium)" : (isHovered ? "url(#glow-subtle)" : undefined)}
-        onClick={() => handleNodeClick(node, selectedNode?.txid ?? null)}
+        onClick={(e) => handleNodeClick(node, selectedNode?.txid ?? null, e)}
       />
 
       {/* Focused node indicator */}
@@ -223,6 +237,8 @@ export function GraphNodeRenderer({
           <animate attributeName="stroke-dashoffset" values="0;8" dur="0.8s" repeatCount="indefinite" />
         </rect>
       )}
+
+      {selectionOutline}
 
       {/* Loading pulse overlay */}
       {isLoading && (
@@ -299,7 +315,7 @@ export function GraphNodeRenderer({
         style={{ cursor: draggingTxid === node.txid ? "grabbing" : onNodePositionChange && viewTransform ? "grab" : "pointer" }}
         onMouseDown={(e) => handleNodeMouseDown(e, node)}
         onTouchStart={handleNodeTouchStart ? (e) => handleNodeTouchStart(e, node) : undefined}
-        onClick={() => { if (!justDraggedRef.current) handleNodeClick(node, selectedNode?.txid ?? null); }}
+        onClick={(e) => { if (!justDraggedRef.current) handleNodeClick(node, selectedNode?.txid ?? null, e); }}
         onDoubleClick={(e) => { e.stopPropagation(); handleNodeDoubleClick(node); }}
       />
 

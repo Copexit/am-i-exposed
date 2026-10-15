@@ -71,6 +71,10 @@ export function GraphCanvas({
   layoutMode,
   unbundledPairs,
   onToggleBundle,
+  selection,
+  onToggleSelect,
+  selectMode,
+  excludedTxids,
 }: GraphCanvasProps) {
   // Subscribe to theme changes so SVG_COLORS proxy resolves fresh values on re-render
   useTheme();
@@ -139,7 +143,7 @@ export function GraphCanvas({
     nodes, rootTxid, filter, rootTxids,
     expandedNodeTxid, isFullscreen: isFs,
     nodePositionOverrides, boltzmannCache,
-    entropyGradientMode, hoveredNode, layoutMode,
+    entropyGradientMode, hoveredNode, layoutMode, excludedTxids,
   });
 
   // Report visible count to parent (eliminates redundant layout call)
@@ -181,6 +185,7 @@ export function GraphCanvas({
     onExpandOutput,
     onCollapse,
     onToggleExpand,
+    escapeHandledAbove: !!selection?.size || !!selectMode,
   });
 
   // Auto-scroll to keep focused node visible
@@ -250,10 +255,15 @@ export function GraphCanvas({
   }, [nodes, atCapacity, onExpandInput, onExpandOutput]);
 
   // Handle node click - toggle expansion (UTXO ports) or floating analysis panel
-  const handleNodeClick = useCallback((node: LayoutNode, currentSelected: string | null) => {
+  const handleNodeClick = useCallback((node: LayoutNode, currentSelected: string | null, e?: React.MouseEvent) => {
     // In annotate mode, clicking a node opens its label editor
     if (annotateMode && onSetNodeLabel) {
       startEditNodeLabel(node.txid);
+      return;
+    }
+    // Ctrl/Cmd/Shift-click (or a tap in select mode) toggles the selection, never the sidebar
+    if (onToggleSelect && (selectMode || e?.ctrlKey || e?.metaKey || e?.shiftKey)) {
+      onToggleSelect(node.txid);
       return;
     }
     // If expansion is available, toggle the expanded UTXO port view
@@ -272,7 +282,7 @@ export function GraphCanvas({
       x: pos.x,
       y: pos.y,
     });
-  }, [setSelectedNode, toScreen, onToggleExpand, annotateMode, onSetNodeLabel, startEditNodeLabel]);
+  }, [setSelectedNode, toScreen, onToggleExpand, annotateMode, onSetNodeLabel, startEditNodeLabel, onToggleSelect, selectMode]);
 
   // Minimap scroll handler
   const [scrollPos, setScrollPos] = useState({ left: 0, top: 0 });
@@ -444,6 +454,7 @@ export function GraphCanvas({
             hoveredEdges={hoveredEdges}
             focusedNode={focusedNode}
             highlightTxids={highlightTxids}
+            isSelected={!!selection?.has(node.txid)}
             focusSpotlight={focusSpotlight}
             expandedNodeTxid={expandedNodeTxid ?? null}
             heatMapActive={heatMapActive}

@@ -68,3 +68,29 @@ describe("graphReducer ADD_NODES", () => {
     expect([...graphReducer(next, { type: "UNDO" }).rootTxids]).toEqual(["root"]);
   });
 });
+
+describe("graphReducer REMOVE_NODES", () => {
+  const node = (txid: string, from: string) =>
+    ({ txid, tx: makeTx({ txid }), depth: 1, parentEdge: { fromTxid: from, outputIndex: 0 } });
+  const built = () => graphReducer(withRoot("root"), {
+    type: "ADD_NODES",
+    nodes: [node("a", "root"), node("b", "a"), node("c", "root"), node("d", "root")],
+  });
+
+  it("never removes a root and cascades unreachable nodes", () => {
+    const next = graphReducer(built(), { type: "REMOVE_NODES", txids: ["root", "a", "c"] });
+    expect([...next.nodes.keys()]).toEqual(["root", "d"]);
+  });
+
+  it("is one undo step that restores every removed node", () => {
+    const state = built();
+    const next = graphReducer(state, { type: "REMOVE_NODES", txids: ["a", "c"] });
+    expect(next.undoStack).toHaveLength(state.undoStack.length + 1);
+    expect([...graphReducer(next, { type: "UNDO" }).nodes.keys()]).toEqual(["root", "a", "b", "c", "d"]);
+  });
+
+  it("is a no-op when only roots or unknown txids are given", () => {
+    const state = built();
+    expect(graphReducer(state, { type: "REMOVE_NODES", txids: ["root", "zzz"] })).toBe(state);
+  });
+});

@@ -200,6 +200,10 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     dispatch({ type: "REMOVE_NODE", txid });
   }, []);
 
+  const removeNodes = useCallback((txids: string[]) => {
+    dispatch({ type: "REMOVE_NODES", txids });
+  }, []);
+
   const undo = useCallback(() => {
     dispatch({ type: "UNDO" });
   }, []);
@@ -338,6 +342,7 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     expandInput,
     expandOutput,
     collapse,
+    removeNodes,
     undo,
     canUndo: state.undoStack.length > 0,
     reset,

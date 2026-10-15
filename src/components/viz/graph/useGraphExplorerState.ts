@@ -7,7 +7,7 @@
 
 import { useReducer, useCallback, useRef } from "react";
 import type { ScoringResult } from "@/lib/types";
-import type { GraphAnnotation, GraphLayoutMode, SavedGraph } from "@/lib/graph/saved-graph-types";
+import { savedHiddenTxids, type GraphAnnotation, type GraphLayoutMode, type SavedGraph } from "@/lib/graph/saved-graph-types";
 import type { NodeFilter, ViewTransform } from "./types";
 
 // ─── State ──────────────────────────────────────────────────────────
@@ -67,6 +67,16 @@ export interface GraphExplorerState {
   pickMode: boolean;
   /** Transient focus-ring set (an added path), cleared by the next canvas click. */
   highlightTxids: Set<string>;
+
+  // Multi-select and batch actions
+  /** Selected txids (modifier-click or select mode); selecting never opens the sidebar. */
+  selection: Set<string>;
+  /** Manually hidden txids (saved with the graph). */
+  hidden: Set<string>;
+  /** Show only nodes within `hops` of these txids (not saved). */
+  isolate: { txids: Set<string>; hops: 1 | 2 } | null;
+  /** Touch: a node tap toggles its selection. */
+  selectMode: boolean;
 }
 
 // ─── Actions ────────────────────────────────────────────────────────
@@ -110,7 +120,13 @@ type GraphExplorerAction =
   | { type: "SET_CONNECTION_FIELD"; field: "from" | "to"; value: string }
   | { type: "SET_PICK_MODE"; active: boolean }
   | { type: "PICK_NODE"; txid: string }
-  | { type: "SET_HIGHLIGHT"; txids: Set<string> };
+  | { type: "SET_HIGHLIGHT"; txids: Set<string> }
+  | { type: "TOGGLE_SELECTED"; txid: string }
+  | { type: "SET_SELECTION"; txids: Set<string> }
+  | { type: "HIDE_NODES"; txids: Set<string> }
+  | { type: "SET_HIDDEN"; txids: Set<string> }
+  | { type: "SET_ISOLATE"; isolate: { txids: Set<string>; hops: 1 | 2 } | null }
+  | { type: "SET_SELECT_MODE"; active: boolean };
 
 // ─── Reducer ────────────────────────────────────────────────────────
 
@@ -144,7 +160,10 @@ function graphExplorerReducer(state: GraphExplorerState, action: GraphExplorerAc
       return { ...state, unbundledPairs: next };
     }
     case "RESET_VIEW":
-      return { ...state, unbundledPairs: new Set(), nodePositionOverrides: new Map(), timePositionOverrides: new Map() };
+      return {
+        ...state, unbundledPairs: new Set(), nodePositionOverrides: new Map(), timePositionOverrides: new Map(),
+        selection: new Set(), hidden: new Set(), isolate: null,
+      };
     case "SET_NODE_POSITION_OVERRIDES":
       return { ...state, nodePositionOverrides: action.overrides };
     case "SET_ANNOTATIONS":
@@ -234,6 +253,9 @@ function graphExplorerReducer(state: GraphExplorerState, action: GraphExplorerAc
         edgeLabels: action.graph.edgeLabels
           ? new Map(Object.entries(action.graph.edgeLabels))
           : new Map(),
+        hidden: new Set(savedHiddenTxids(action.graph)),
+        selection: new Set(),
+        isolate: null,
       };
     case "CLEAR_FULLSCREEN":
       return { ...state, selectedNode: null, viewTransform: { x: 0, y: 0, scale: 1 } };
@@ -250,6 +272,22 @@ function graphExplorerReducer(state: GraphExplorerState, action: GraphExplorerAc
       return state.connection ? { ...state, pickMode: false, connection: { ...state.connection, to: action.txid } } : state;
     case "SET_HIGHLIGHT":
       return state.highlightTxids.size === 0 && action.txids.size === 0 ? state : { ...state, highlightTxids: action.txids };
+    case "TOGGLE_SELECTED": {
+      const next = new Set(state.selection);
+      if (next.has(action.txid)) next.delete(action.txid); else next.add(action.txid);
+      return { ...state, selection: next };
+    }
+    case "SET_SELECTION":
+      return state.selection.size === 0 && action.txids.size === 0 ? state : { ...state, selection: action.txids };
+    case "HIDE_NODES":
+      // Hidden nodes leave the selection: the batch bar only counts what is on screen
+      return { ...state, hidden: new Set([...state.hidden, ...action.txids]), selection: new Set() };
+    case "SET_HIDDEN":
+      return { ...state, hidden: action.txids };
+    case "SET_ISOLATE":
+      return { ...state, isolate: action.isolate };
+    case "SET_SELECT_MODE":
+      return { ...state, selectMode: action.active };
     default:
       return state;
   }
@@ -288,6 +326,10 @@ function createInitialState(_alwaysFullscreen?: boolean): GraphExplorerState {
     connection: null,
     pickMode: false,
     highlightTxids: new Set(),
+    selection: new Set(),
+    hidden: new Set(),
+    isolate: null,
+    selectMode: false,
   };
 }
 

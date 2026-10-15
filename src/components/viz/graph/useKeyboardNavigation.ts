@@ -15,6 +15,8 @@ interface UseKeyboardNavigationParams {
   onExpandOutput: (txid: string, outputIndex: number) => void;
   onCollapse: (txid: string) => void;
   onToggleExpand?: (txid: string) => void;
+  /** Escape clears the selection or select mode (window handler) before collapsing ports. */
+  escapeHandledAbove?: boolean;
 }
 
 export function useKeyboardNavigation({
@@ -29,6 +31,7 @@ export function useKeyboardNavigation({
   onExpandOutput,
   onCollapse,
   onToggleExpand,
+  escapeHandledAbove,
 }: UseKeyboardNavigationParams): (e: React.KeyboardEvent) => void {
   return useCallback((e: React.KeyboardEvent) => {
     // Don't capture keys when typing in an input element
@@ -150,11 +153,11 @@ export function useKeyboardNavigation({
       case "Escape": {
         // Collapse expanded node ports
         e.preventDefault();
-        if (expandedNodeTxid && onToggleExpand) {
+        if (expandedNodeTxid && onToggleExpand && !escapeHandledAbove) {
           onToggleExpand(expandedNodeTxid);
         }
         break;
       }
     }
-  }, [focusedNode, layoutNodes, nodes, rootTxid, atCapacity, onExpandInput, onExpandOutput, onCollapse, setFocusedNode, onToggleExpand, expandedNodeTxid]);
+  }, [focusedNode, layoutNodes, nodes, rootTxid, atCapacity, onExpandInput, onExpandOutput, onCollapse, setFocusedNode, onToggleExpand, expandedNodeTxid, escapeHandledAbove]);
 }

@@ -21,6 +21,9 @@ import { GraphToolbar } from "./graph/GraphToolbar";
 import { GraphLegend } from "./graph/GraphLegend";
 import { GraphTooltipContent } from "./graph/GraphTooltipContent";
 import { GraphViewport } from "./graph/GraphViewport";
+import { BatchBar } from "./graph/BatchBar";
+import { FilterChips } from "./graph/FilterChips";
+import { nodesWithinHops } from "@/lib/graph/isolate";
 import { useGraphExplorerState, activePositionOverrides } from "./graph/useGraphExplorerState";
 import { useGraphHeatMap } from "./graph/useGraphHeatMap";
 import { useChangeOutputDetection } from "./graph/useChangeOutputDetection";
@@ -60,6 +63,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
     fingerprintMode, changeOutputs, visibleCount,
     connection, pickMode, highlightTxids,
     layoutMode, unbundledPairs,
+    selection, hidden, isolate, selectMode,
   } = state;
   const timeMode = layoutMode === "time";
   // Saved (hops) positions go to the toolbar; the canvas lays out with the active mode's
@@ -233,7 +237,46 @@ export function GraphExplorer(props: GraphExplorerProps) {
   // ─── Auto-mark change outputs ──────────────────────────
   useChangeOutputDetection({ nodes: graph.nodes, dispatch, userToggledRef });
 
+  // ─── Multi-select, hide, isolate ───────────────────────
+  // Hides and isolate leave nodes out of the layout like the type filters
+  const excludedTxids = useMemo(() => {
+    if (hidden.size === 0 && !isolate) return undefined;
+    const out = new Set(hidden);
+    if (isolate) {
+      const keep = nodesWithinHops(graph.nodes, isolate.txids, isolate.hops);
+      for (const txid of graph.nodes.keys()) if (!keep.has(txid)) out.add(txid);
+    }
+    return out;
+  }, [graph.nodes, hidden, isolate]);
+  // Undo or a collapse can drop selected nodes: act on the ones still in the graph
+  const selectedTxids = useMemo(() => [...selection].filter((txid) => graph.nodes.has(txid)), [selection, graph.nodes]);
+  const manualHiddenCount = useMemo(
+    () => [...hidden].filter((txid) => graph.nodes.has(txid) && !graph.rootTxids.has(txid)).length,
+    [hidden, graph.nodes, graph.rootTxids],
+  );
+  const { removeNodes } = graph;
+  const batch = {
+    onLabel: (label: string) => {
+      const next = new Map(nodeLabels);
+      for (const txid of selectedTxids) { if (label) next.set(txid, label); else next.delete(txid); }
+      dispatch({ type: "SET_NODE_LABELS", labels: next });
+    },
+    // The roots and the open node are never hidden (the layout keeps them anyway)
+    onHide: () => dispatch({
+      type: "HIDE_NODES",
+      txids: new Set(selectedTxids.filter((txid) => !graph.rootTxids.has(txid) && txid !== graph.expandedNodeTxid)),
+    }),
+    onIsolate: (hops: 1 | 2) => dispatch({ type: "SET_ISOLATE", isolate: { txids: new Set(selectedTxids), hops } }),
+    onRemove: () => {
+      removeNodes(selectedTxids);
+      dispatch({ type: "SET_SELECTION", txids: new Set() });
+    },
+    onSelectAll: () => dispatch({ type: "SET_SELECTION", txids: new Set(nodePositionsRef.current.keys()) }),
+    onClear: () => dispatch({ type: "SET_SELECTION", txids: new Set() }),
+  };
+
   // ─── Layout helpers ────────────────────────────────────
+  // Type filters, manual hides and isolate: everything not laid out
   const hiddenCount = graph.nodeCount - visibleCount;
 
   // Fit/auto-fit frame the boxes the canvas actually rendered (seeded and
@@ -313,6 +356,12 @@ export function GraphExplorer(props: GraphExplorerProps) {
         if (e.key === "Escape") (e.target as HTMLElement).blur();
         return;
       }
+      // Escape order (the BIP329 conflict modal and pick mode come first): panel, selection, select mode
+      if (e.key === "Escape") {
+        if (connection) { closeConnection(); return; }
+        if (selection.size > 0) { dispatch({ type: "SET_SELECTION", txids: new Set() }); return; }
+        if (selectMode) { dispatch({ type: "SET_SELECT_MODE", active: false }); return; }
+      }
       switch (e.key) {
         case "h": handleToggleHeatMap(); break;
         case "g": handleToggleFingerprint(); break;
@@ -334,14 +383,14 @@ export function GraphExplorer(props: GraphExplorerProps) {
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [handleToggleHeatMap, handleToggleFingerprint, cycleEdgeMode, isExpanded, collapseFullscreen, handleExpandFullscreen, undo, reset, zoomBy, handleFitView, dispatch, pickMode, toggleLayoutMode]);
+  }, [handleToggleHeatMap, handleToggleFingerprint, cycleEdgeMode, isExpanded, collapseFullscreen, handleExpandFullscreen, undo, reset, zoomBy, handleFitView, dispatch, pickMode, toggleLayoutMode, connection, closeConnection, selection, selectMode]);
 
   // Compact inline: canvas height fits the laid-out graph (260-500px).
   const compactHeight = useMemo(() => {
     if (!compact) return undefined;
-    const { height } = layoutGraph(graph.nodes, graph.rootTxid, filter, graph.rootTxids, graph.expandedNodeTxid, false, positionOverrides, layoutMode);
+    const { height } = layoutGraph(graph.nodes, graph.rootTxid, filter, graph.rootTxids, graph.expandedNodeTxid, false, positionOverrides, layoutMode, excludedTxids);
     return Math.min(500, Math.max(260, height + 48));
-  }, [compact, graph.nodes, graph.rootTxid, filter, graph.rootTxids, graph.expandedNodeTxid, positionOverrides, layoutMode]);
+  }, [compact, graph.nodes, graph.rootTxid, filter, graph.rootTxids, graph.expandedNodeTxid, positionOverrides, layoutMode, excludedTxids]);
 
   // Early return for empty graph (but not alwaysFullscreen)
   if (graph.nodes.size === 0 && !props.alwaysFullscreen) return null;
@@ -365,6 +414,8 @@ export function GraphExplorer(props: GraphExplorerProps) {
     onFindConnection: graph.fetcher ? () => (connection ? closeConnection() : openConnection()) : undefined,
     findConnectionOpen: !!connection,
     layoutMode, onToggleLayoutMode: toggleLayoutMode,
+    selectMode, onToggleSelectMode: () => dispatch({ type: "SET_SELECT_MODE", active: !selectMode }),
+    hiddenTxids: hidden,
   };
 
   // Any canvas click ends the highlight; in pick mode a node click sets To instead
@@ -402,7 +453,23 @@ export function GraphExplorer(props: GraphExplorerProps) {
     nodeLabels, onSetNodeLabel: handleSetNodeLabel, edgeLabels, onSetEdgeLabel: handleSetEdgeLabel,
     layoutMode, unbundledPairs,
     onToggleBundle: (key: string) => dispatch({ type: "TOGGLE_BUNDLE", key }),
+    // In pick mode a click (with or without a modifier) sets the connection's To
+    selection, selectMode, excludedTxids,
+    onToggleSelect: pickMode ? undefined : (txid: string) => dispatch({ type: "TOGGLE_SELECTED", txid }),
   };
+
+  const chips = (
+    <FilterChips
+      filter={filter}
+      onToggleFilter={(key: keyof NodeFilter) => dispatch({ type: "TOGGLE_FILTER", key })}
+      hiddenCount={manualHiddenCount}
+      onShowHidden={() => dispatch({ type: "SET_HIDDEN", txids: new Set() })}
+      isolate={isolate && { count: isolate.txids.size, hops: isolate.hops }}
+      onClearIsolate={() => dispatch({ type: "SET_ISOLATE", isolate: null })}
+    />
+  );
+
+  const batchBar = selectedTxids.length > 0 && <BatchBar count={selectedTxids.length} {...batch} />;
 
   const legend = (
     <GraphLegend
@@ -489,11 +556,12 @@ export function GraphExplorer(props: GraphExplorerProps) {
       <div className="flex flex-col h-full">
         <div className="pt-4 px-4 space-y-2 shrink-0">
           <GraphToolbar {...toolbarProps} {...zoomProps} />
+          {chips}
         </div>
         <GraphViewport
           canvasProps={canvasProps} viewTransform={viewTransform} onViewTransformChange={setViewTransform}
           isFullscreen showSidebar={showSidebar} scrollRef={scrollRef}
-          legend={<>{legend}{connectionPanel}</>} tooltipContent={tooltipContent} sidebar={renderSidebar("af-")}
+          legend={<>{legend}{connectionPanel}{batchBar}</>} tooltipContent={tooltipContent} sidebar={renderSidebar("af-")}
           outerStyle={{ touchAction: "none" }}
         />
         {lastError && <div className="text-xs text-severity-medium/80 px-4 pb-2">{lastError}</div>}
@@ -508,13 +576,14 @@ export function GraphExplorer(props: GraphExplorerProps) {
         className="graph-canvas relative rounded-xl border border-card-border bg-surface-inset p-4 space-y-3"
       >
         <GraphToolbar {...toolbarProps} compact={compact} onExpandFullscreen={handleExpandFullscreen} />
+        {!isExpanded && chips}
 
         {!isExpanded && (
           <div className="relative flex overflow-hidden rounded-lg" style={compactHeight ? { height: compactHeight } : undefined}>
             <GraphViewport
               canvasProps={canvasProps} viewTransform={viewTransform} onViewTransformChange={setViewTransform}
               showSidebar={showSidebar} scrollRef={scrollRef}
-              legend={<>{compact ? null : legend}{connectionPanel}</>} tooltipContent={tooltipContent} sidebar={renderSidebar("")}
+              legend={<>{compact ? null : legend}{connectionPanel}{batchBar}</>} tooltipContent={tooltipContent} sidebar={renderSidebar("")}
               scrollClassName={compactHeight ? "overflow-hidden h-full -mx-4 px-4" : "overflow-hidden h-[500px] -mx-4 px-4"}
               outerStyle={{ touchAction: "none" }}
             />
@@ -557,11 +626,12 @@ export function GraphExplorer(props: GraphExplorerProps) {
           </button>
           <div className="p-4 pr-12 space-y-2 shrink-0">
             <GraphToolbar {...toolbarProps} onSearch={undefined} onLoadSavedGraph={undefined} {...zoomProps} />
+            {chips}
           </div>
           <GraphViewport
             canvasProps={canvasProps} viewTransform={viewTransform} onViewTransformChange={setViewTransform}
             isFullscreen showSidebar={showSidebar} scrollRef={scrollRef}
-            legend={<>{legend}{connectionPanel}</>} tooltipContent={tooltipContent} sidebar={renderSidebar("fs-")}
+            legend={<>{legend}{connectionPanel}{batchBar}</>} tooltipContent={tooltipContent} sidebar={renderSidebar("fs-")}
             outerStyle={{ touchAction: "none" }}
           />
         </div>,

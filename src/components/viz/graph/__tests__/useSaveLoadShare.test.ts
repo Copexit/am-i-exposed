@@ -120,3 +120,26 @@ describe("useSaveLoadShare - layout mode", () => {
     expect(stored()[0]?.layoutMode).toBe("time");
   });
 });
+
+describe("useSaveLoadShare - hidden nodes", () => {
+  const txid = "e".repeat(64);
+  const nodes = new Map([[txid, { txid, depth: 0 }]]) as never;
+  const stored = () => JSON.parse(localStorage.getItem("ami-saved-graphs") ?? "[]") as { id: string; hiddenTxids?: string[] }[];
+  beforeEach(() => localStorage.clear());
+  afterEach(() => localStorage.clear());
+
+  it("saves the hidden txids, and Update rewrites them", () => {
+    const { result, rerender } = renderHook(
+      ({ hiddenTxids, currentGraphId }: { hiddenTxids: Set<string>; currentGraphId: string | null }) =>
+        useSaveLoadShare({ nodes, rootTxid: txid, rootTxids: new Set([txid]), network: "mainnet", currentGraphId, hiddenTxids }),
+      { initialProps: { hiddenTxids: new Set([txid]), currentGraphId: null as string | null } },
+    );
+    act(() => { result.current.handleSave(); });
+    const [saved] = stored();
+    expect(saved?.hiddenTxids).toEqual([txid]);
+
+    rerender({ hiddenTxids: new Set(), currentGraphId: saved!.id });
+    act(() => { result.current.handleUpdate(); });
+    expect(stored()[0]?.hiddenTxids).toBeUndefined();
+  });
+});

@@ -25,6 +25,7 @@ interface UseGraphLayoutParams {
   entropyGradientMode?: boolean;
   hoveredNode: string | null;
   layoutMode?: GraphLayoutMode;
+  excludedTxids?: ReadonlySet<string>;
 }
 
 interface UseGraphLayoutResult {
@@ -57,10 +58,11 @@ export function useGraphLayout({
   entropyGradientMode,
   hoveredNode,
   layoutMode = "hops",
+  excludedTxids,
 }: UseGraphLayoutParams): UseGraphLayoutResult {
   const { layoutNodes, edges, width, height, nodePositions, timeColumns } = useMemo(
-    () => layoutGraph(nodes, rootTxid, filter, rootTxids, expandedNodeTxid, isFullscreen, nodePositionOverrides, layoutMode),
-    [nodes, rootTxid, filter, rootTxids, expandedNodeTxid, isFullscreen, nodePositionOverrides, layoutMode],
+    () => layoutGraph(nodes, rootTxid, filter, rootTxids, expandedNodeTxid, isFullscreen, nodePositionOverrides, layoutMode, excludedTxids),
+    [nodes, rootTxid, filter, rootTxids, expandedNodeTxid, isFullscreen, nodePositionOverrides, layoutMode, excludedTxids],
   );
 
   // Pre-compute ricochet hop labels by walking forward from hop 0 nodes

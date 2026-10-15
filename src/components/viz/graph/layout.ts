@@ -154,15 +154,18 @@ export function layoutGraph(
   /** User-defined position overrides (from node dragging). */
   positionOverrides?: Map<string, { x: number; y: number }>,
   layoutMode: GraphLayoutMode = "hops",
+  /** Txids left out like filtered ones (manual hides, outside an isolate). */
+  excluded?: ReadonlySet<string>,
 ): { layoutNodes: LayoutNode[]; edges: LayoutEdge[]; width: number; height: number; nodePositions: Map<string, { x: number; y: number; w: number; h: number }>; timeColumns?: TimeColumn[] } {
   const layoutNodes: LayoutNode[] = [];
   const edges: LayoutEdge[] = [];
   const timeMode = layoutMode === "time";
 
   const isRootTx = (txid: string) => rootTxids ? rootTxids.has(txid) : txid === rootTxid;
-  // Filter (never filter root, never filter expanded)
+  // Filter and exclusions (never the root, never the expanded node)
   const isFiltered = (node: GraphNode) => {
     if (isRootTx(node.txid) || node.txid === expandedNodeTxid) return false;
+    if (excluded?.has(node.txid)) return true;
     const { isCJ, entityMatch } = getCachedAnalysis(graphNodes, node.tx, node.txid);
     if (isCJ) return !filter.showCoinJoin;
     if (entityMatch) return !filter.showEntity;

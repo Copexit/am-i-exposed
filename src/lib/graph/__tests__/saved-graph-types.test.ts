@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { serializeGraph, validateSavedGraph } from "../saved-graph-types";
+import { serializeGraph, validateSavedGraph, savedHiddenTxids } from "../saved-graph-types";
 import type { GraphState } from "../graph-reducer";
 
 const txid = "c".repeat(64);
@@ -30,5 +30,29 @@ describe("SavedGraph layoutMode", () => {
     const args = [undefined, undefined, undefined, undefined, undefined, undefined] as const;
     expect(serializeGraph(state, "g", "mainnet", ...args, "time").layoutMode).toBe("time");
     expect(serializeGraph(state, "g", "mainnet", ...args, "hops").layoutMode).toBeUndefined();
+  });
+});
+
+describe("SavedGraph hiddenTxids", () => {
+  const args = [undefined, undefined, undefined, undefined, undefined, undefined, undefined] as const;
+
+  it("round trips the hidden txids still in the graph", () => {
+    const saved = serializeGraph(state, "g", "mainnet", ...args, new Set([txid, "d".repeat(64)]));
+    expect(saved.hiddenTxids).toEqual([txid]);
+    const back: unknown = JSON.parse(JSON.stringify(saved));
+    expect(validateSavedGraph(back)).toBe(true);
+    if (validateSavedGraph(back)) expect(savedHiddenTxids(back)).toEqual([txid]);
+  });
+
+  it("omits an empty set; older graphs without it load with none hidden", () => {
+    expect(serializeGraph(state, "g", "mainnet", ...args, new Set()).hiddenTxids).toBeUndefined();
+    expect(savedHiddenTxids(base())).toEqual([]);
+  });
+
+  it("drops malformed entries without rejecting the graph", () => {
+    const g = { ...base(), hiddenTxids: [txid, "nope", 7, null] };
+    expect(validateSavedGraph(g)).toBe(true);
+    expect(savedHiddenTxids(g as never)).toEqual([txid]);
+    expect(savedHiddenTxids({ ...base(), hiddenTxids: "x" } as never)).toEqual([]);
   });
 });
