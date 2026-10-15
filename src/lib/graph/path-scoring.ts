@@ -31,7 +31,7 @@ function scoreHop(
 
   // The pool remaps the matrix to submitted order, the same [vout][vin] mapping the graph edges use.
   const p = boltzmann.get(txid)?.matLnkProbabilities[outIndex]?.[inIndex];
-  if (p !== undefined) return { txid, probability: p, basis: "boltzmann" };
+  if (p !== undefined) return { txid, probability: p, basis: p >= 1 ? "deterministic" : "boltzmann" };
 
   const change = analyzeChangeDetection(tx).findings.find((f) => f.id === "h2-change-detected");
   const conf = change?.params?.confidence;

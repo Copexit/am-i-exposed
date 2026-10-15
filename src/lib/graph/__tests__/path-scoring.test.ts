@@ -50,6 +50,14 @@ describe("scorePath", () => {
     expect(s.tier).toBe("likely");
   });
 
+  it("a Boltzmann cell of exactly 1 is deterministic", () => {
+    const m = tx("m", 2, 3, { out: [1_000, 2_000, 3_000] });
+    const cache = mat([[0, 1], [1, 0], [0.5, 0.5]]);
+    const s = scorePath(linear({ txid: "a", outIndex: 0 }, { txid: "m", inIndex: 1, outIndex: 0 }, { txid: "b", inIndex: 0 }), map(m), cache);
+    expect(s.hops[0]).toEqual({ txid: "m", probability: 1, basis: "deterministic" });
+    expect(s.tier).toBe("deterministic");
+  });
+
   it.each([["high", 0.8], ["medium", 0.65], ["low", 0.55]])("maps %s change confidence to %d", (conf, p) => {
     mocks.change.mockReturnValue({ findings: [{ id: "h2-change-detected", params: { confidence: conf, changeIndex: 1 } }] });
     const path = linear({ txid: "a", outIndex: 0 }, { txid: "m", inIndex: 0, outIndex: 1 }, { txid: "b", inIndex: 0 });
