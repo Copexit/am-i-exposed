@@ -226,7 +226,7 @@ function graphExplorerReducer(state: GraphExplorerState, action: GraphExplorerAc
           : new Map(),
         timePositionOverrides: new Map(),
         unbundledPairs: new Set(),
-        layoutMode: action.graph.layoutMode ?? "hops",
+        layoutMode: action.graph.layoutMode === "time" ? "time" : "hops",
         annotations: action.graph.annotations ?? [],
         nodeLabels: action.graph.nodeLabels
           ? new Map(Object.entries(action.graph.nodeLabels))

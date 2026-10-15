@@ -132,7 +132,7 @@ export function validateSavedGraph(obj: unknown): obj is SavedGraph {
   if (typeof obj.rootTxid !== "string" || !TXID_HEX.test(obj.rootTxid)) return false;
   if (!Array.isArray(obj.rootTxids)) return false;
   if (!Array.isArray(obj.nodes) || obj.nodes.length === 0) return false;
-  if (obj.layoutMode !== undefined && obj.layoutMode !== "hops" && obj.layoutMode !== "time") return false;
+  // An unknown layoutMode (a newer build) is not fatal: it opens in hops
 
   for (const n of obj.nodes) {
     if (!isObj(n)) return false;

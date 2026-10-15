@@ -21,9 +21,9 @@ describe("SavedGraph layoutMode", () => {
     expect(validateSavedGraph({ ...base(), layoutMode: "time" })).toBe(true);
   });
 
-  it("rejects any other layoutMode", () => {
-    expect(validateSavedGraph({ ...base(), layoutMode: "chrono" })).toBe(false);
-    expect(validateSavedGraph({ ...base(), layoutMode: 1 })).toBe(false);
+  it("accepts an unknown layoutMode (a newer build); it opens in hops", () => {
+    expect(validateSavedGraph({ ...base(), layoutMode: "chrono" })).toBe(true);
+    expect(validateSavedGraph({ ...base(), layoutMode: 1 })).toBe(true);
   });
 
   it("serializes time mode and omits the hops default", () => {
