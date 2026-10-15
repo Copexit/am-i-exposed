@@ -21,7 +21,7 @@ import { GraphToolbar } from "./graph/GraphToolbar";
 import { GraphLegend } from "./graph/GraphLegend";
 import { GraphTooltipContent } from "./graph/GraphTooltipContent";
 import { GraphViewport } from "./graph/GraphViewport";
-import { useGraphExplorerState } from "./graph/useGraphExplorerState";
+import { useGraphExplorerState, activePositionOverrides } from "./graph/useGraphExplorerState";
 import { useGraphHeatMap } from "./graph/useGraphHeatMap";
 import { useChangeOutputDetection } from "./graph/useChangeOutputDetection";
 import type { GraphExplorerProps, TooltipData, NodeFilter, ViewTransform } from "./graph/types";
@@ -62,6 +62,8 @@ export function GraphExplorer(props: GraphExplorerProps) {
     layoutMode, unbundledPairs,
   } = state;
   const timeMode = layoutMode === "time";
+  // Saved (hops) positions go to the toolbar; the canvas lays out with the active mode's
+  const positionOverrides = activePositionOverrides(state);
 
   const linkabilityEdgeMode = edgeMode === "linkability";
   const entropyGradientMode = edgeMode === "entropy";
@@ -81,8 +83,8 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
   // Free y slot near (x, y), avoiding laid-out nodes and pending drag overrides
   const freeY = useCallback((x: number, y: number, excludeTxid?: string) =>
-    findFreeY(x, y, [nodePositionsRef.current, nodePositionOverrides], excludeTxid),
-  [nodePositionsRef, nodePositionOverrides]);
+    findFreeY(x, y, [nodePositionsRef.current, positionOverrides], excludeTxid),
+  [nodePositionsRef, positionOverrides]);
 
   // When nodes change, detect new nodes and seed their position
   useEffect(() => {
@@ -92,7 +94,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
     for (const txid of graph.nodes.keys()) {
       if (!prevKeys.has(txid)) {
         const y = freeY(seed.x, seed.y, txid);
-        dispatch({ type: "SET_NODE_POSITION", txid, x: seed.x, y, seeded: true });
+        dispatch({ type: "SET_NODE_POSITION", txid, x: seed.x, y });
         pendingSeedRef.current = null;
         break;
       }
@@ -300,7 +302,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
   const { undo, reset: resetGraph } = graph;
   const reset = useCallback(() => {
     resetGraph();
-    dispatch({ type: "CLEAR_BUNDLES" });
+    dispatch({ type: "RESET_VIEW" });
   }, [resetGraph, dispatch]);
   const tbHandlersRef = useRef<Record<string, () => void>>({});
   useEffect(() => {
@@ -337,9 +339,9 @@ export function GraphExplorer(props: GraphExplorerProps) {
   // Compact inline: canvas height fits the laid-out graph (260-500px).
   const compactHeight = useMemo(() => {
     if (!compact) return undefined;
-    const { height } = layoutGraph(graph.nodes, graph.rootTxid, filter, graph.rootTxids, graph.expandedNodeTxid, false, nodePositionOverrides, layoutMode);
+    const { height } = layoutGraph(graph.nodes, graph.rootTxid, filter, graph.rootTxids, graph.expandedNodeTxid, false, positionOverrides, layoutMode);
     return Math.min(500, Math.max(260, height + 48));
-  }, [compact, graph.nodes, graph.rootTxid, filter, graph.rootTxids, graph.expandedNodeTxid, nodePositionOverrides, layoutMode]);
+  }, [compact, graph.nodes, graph.rootTxid, filter, graph.rootTxids, graph.expandedNodeTxid, positionOverrides, layoutMode]);
 
   // Early return for empty graph (but not alwaysFullscreen)
   if (graph.nodes.size === 0 && !props.alwaysFullscreen) return null;
@@ -395,7 +397,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
     setFocusedNode: (txid: string | null) => dispatch({ type: "SET_FOCUSED_NODE", txid }),
     heatMap, heatMapActive, linkabilityEdgeMode, fingerprintMode, entropyGradientMode,
     changeOutputs, onLayoutComplete, boltzmannCache,
-    nodePositionOverrides, onNodePositionChange: handleNodePositionChange,
+    nodePositionOverrides: positionOverrides, onNodePositionChange: handleNodePositionChange,
     annotations, annotateMode, onAnnotationsChange: setAnnotations,
     nodeLabels, onSetNodeLabel: handleSetNodeLabel, edgeLabels, onSetEdgeLabel: handleSetEdgeLabel,
     layoutMode, unbundledPairs,

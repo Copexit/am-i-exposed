@@ -10,7 +10,7 @@ const HEADER_Y = MARGIN.top - 10;
 
 /**
  * Chronological layout headers: block height and date above each column, and
- * a "... N blocks" marker between columns more than one block apart.
+ * a "... N blocks" marker (N blocks lie between them) for columns more than one block apart.
  */
 export function TimeAxis({ columns }: { columns: TimeColumn[] }) {
   const { t, i18n } = useTranslation();
@@ -29,7 +29,7 @@ export function TimeAxis({ columns }: { columns: TimeColumn[] }) {
             <line x1={col.x} x2={col.x + col.width} y1={HEADER_Y + 4} y2={HEADER_Y + 4} stroke={SVG_COLORS.muted} strokeOpacity={0.25} />
             {prev && col.gap > 1 && (
               <text x={(prev.x + prev.width + col.x) / 2} y={HEADER_Y} textAnchor="middle" fill={SVG_COLORS.muted} fillOpacity={0.7} fontStyle="italic">
-                {t("graph.timeGap", { count: col.gap, defaultValue: "... {{count}} blocks" })}
+                {t("graph.timeGap", { count: col.gap - 1, defaultValue: "... {{count}} blocks" })}
               </text>
             )}
           </g>

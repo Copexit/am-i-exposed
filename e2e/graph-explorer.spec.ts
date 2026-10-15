@@ -119,7 +119,7 @@ test("time layout shows block headers and survives save and open", async ({ page
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
   await expect(headers).toHaveCount(2);
   await expect(headers.first()).toContainText("399,990");
-  await expect(page.getByTestId("time-axis")).toContainText("... 6 blocks");
+  await expect(page.getByTestId("time-axis")).toContainText("... 5 blocks");
 
   await page.getByTitle("Save graph (S)").click();
   const nameInput = page.getByPlaceholder("Graph name...");

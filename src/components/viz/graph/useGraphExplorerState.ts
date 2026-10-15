@@ -22,10 +22,11 @@ export interface GraphExplorerState {
   filter: NodeFilter;
   sidebarCollapsed: boolean;
 
-  // Node position overrides from dragging (and expansion seeds)
+  // Node position overrides from dragging (and expansion seeds), per layout mode.
+  /** Hops-mode positions: the ones saved with the graph. */
   nodePositionOverrides: Map<string, { x: number; y: number }>;
-  /** Overrides that are only expansion seeds, not user drags (dropped on a layout switch). */
-  seededTxids: Set<string>;
+  /** Time-mode drags: session-only, never saved, dropped when leaving time mode. */
+  timePositionOverrides: Map<string, { x: number; y: number }>;
 
   // Column layout
   layoutMode: GraphLayoutMode;
@@ -77,10 +78,10 @@ type GraphExplorerAction =
   | { type: "SET_FILTER"; filter: NodeFilter }
   | { type: "TOGGLE_FILTER"; key: keyof NodeFilter }
   | { type: "SET_SIDEBAR_COLLAPSED"; collapsed: boolean }
-  | { type: "SET_NODE_POSITION"; txid: string; x: number; y: number; seeded?: boolean }
+  | { type: "SET_NODE_POSITION"; txid: string; x: number; y: number }
   | { type: "TOGGLE_LAYOUT_MODE" }
   | { type: "TOGGLE_BUNDLE"; key: string }
-  | { type: "CLEAR_BUNDLES" }
+  | { type: "RESET_VIEW" }
   | { type: "SET_NODE_POSITION_OVERRIDES"; overrides: Map<string, { x: number; y: number }> }
   | { type: "SET_ANNOTATIONS"; annotations: GraphAnnotation[] }
   | { type: "TOGGLE_ANNOTATE_MODE" }
@@ -128,30 +129,22 @@ function graphExplorerReducer(state: GraphExplorerState, action: GraphExplorerAc
     case "SET_SIDEBAR_COLLAPSED":
       return { ...state, sidebarCollapsed: action.collapsed };
     case "SET_NODE_POSITION": {
-      const next = new Map(state.nodePositionOverrides);
+      const field = state.layoutMode === "time" ? "timePositionOverrides" : "nodePositionOverrides";
+      const next = new Map(state[field]);
       next.set(action.txid, { x: action.x, y: action.y });
-      const seeded = new Set(state.seededTxids);
-      if (action.seeded) seeded.add(action.txid); else seeded.delete(action.txid);
-      return { ...state, nodePositionOverrides: next, seededTxids: seeded };
+      return { ...state, [field]: next };
     }
-    case "TOGGLE_LAYOUT_MODE": {
-      // Seeds only kept new nodes near their trigger in the old layout; drags stay
-      const overrides = new Map(state.nodePositionOverrides);
-      for (const txid of state.seededTxids) overrides.delete(txid);
-      return {
-        ...state,
-        layoutMode: state.layoutMode === "time" ? "hops" : "time",
-        nodePositionOverrides: overrides,
-        seededTxids: new Set(),
-      };
-    }
+    case "TOGGLE_LAYOUT_MODE":
+      // A hops x means nothing on a time axis: each mode has its own overrides,
+      // and time mode always starts clean
+      return { ...state, layoutMode: state.layoutMode === "time" ? "hops" : "time", timePositionOverrides: new Map() };
     case "TOGGLE_BUNDLE": {
       const next = new Set(state.unbundledPairs);
       if (next.has(action.key)) next.delete(action.key); else next.add(action.key);
       return { ...state, unbundledPairs: next };
     }
-    case "CLEAR_BUNDLES":
-      return state.unbundledPairs.size === 0 ? state : { ...state, unbundledPairs: new Set() };
+    case "RESET_VIEW":
+      return { ...state, unbundledPairs: new Set(), nodePositionOverrides: new Map(), timePositionOverrides: new Map() };
     case "SET_NODE_POSITION_OVERRIDES":
       return { ...state, nodePositionOverrides: action.overrides };
     case "SET_ANNOTATIONS":
@@ -231,7 +224,8 @@ function graphExplorerReducer(state: GraphExplorerState, action: GraphExplorerAc
         nodePositionOverrides: action.graph.nodePositions
           ? new Map(Object.entries(action.graph.nodePositions))
           : new Map(),
-        seededTxids: new Set(),
+        timePositionOverrides: new Map(),
+        unbundledPairs: new Set(),
         layoutMode: action.graph.layoutMode ?? "hops",
         annotations: action.graph.annotations ?? [],
         nodeLabels: action.graph.nodeLabels
@@ -261,6 +255,11 @@ function graphExplorerReducer(state: GraphExplorerState, action: GraphExplorerAc
   }
 }
 
+/** The position overrides of the active layout mode (what the canvas lays out with). */
+export function activePositionOverrides(state: GraphExplorerState): Map<string, { x: number; y: number }> {
+  return state.layoutMode === "time" ? state.timePositionOverrides : state.nodePositionOverrides;
+}
+
 // ─── Initial state factory ──────────────────────────────────────────
 
 function createInitialState(_alwaysFullscreen?: boolean): GraphExplorerState {
@@ -271,7 +270,7 @@ function createInitialState(_alwaysFullscreen?: boolean): GraphExplorerState {
     filter: { showCoinJoin: true, showEntity: true, showStandard: true },
     sidebarCollapsed: typeof window !== "undefined" && window.innerWidth < 640,
     nodePositionOverrides: new Map(),
-    seededTxids: new Set(),
+    timePositionOverrides: new Map(),
     layoutMode: "hops",
     unbundledPairs: new Set(),
     annotations: [],

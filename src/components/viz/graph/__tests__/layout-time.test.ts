@@ -57,7 +57,7 @@ describe("layoutGraph time mode", () => {
     const { cols, timeColumns } = columns(g, "A");
     expect(cols).toEqual([["A"], ["U1"], ["U2"]]);
     expect(timeColumns.map((c) => c.height)).toEqual([700, null, null]);
-    expect(timeColumns.every((c) => c.gap === 0 || c.height !== null)).toBe(true);
+    expect(timeColumns.filter((c) => c.height === null).map((c) => c.gap)).toEqual([0, 0]);
   });
 
   it("lays out a multi-root graph by height across roots", () => {
