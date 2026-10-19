@@ -52,6 +52,7 @@ export const FINDING_METADATA = {
   "h4-stonewall":            { adversaryTiers: [P], temporality: "historical" },
   "h4-simplified-stonewall": { adversaryTiers: [P], temporality: "historical" },
   "h4-exchange-flagging":    { adversaryTiers: [K], temporality: "historical" },
+  "h4-coinjoin-single-entity": { adversaryTiers: [P], temporality: "historical" },
 
   // ── H5: Entropy Analysis ────────────────────────────────────────────
   "h5-zero-entropy":       { adversaryTiers: [P], temporality: "historical" },

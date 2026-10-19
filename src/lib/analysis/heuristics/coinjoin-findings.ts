@@ -16,6 +16,10 @@ const EXCHANGE_WARNING =
   "Some exchanges retroactively flag CoinJoin activity months or years after the transaction. " +
   "For safe off-ramping, consider decentralized alternatives like Bisq, RoboSats, or Hodl Hodl that do not apply chain surveillance.";
 
+/** Neutral note for CoinJoins not attributed to a known coordinator (JoinMarket by shape, generic). */
+const PARTICIPANTS_NOTE =
+  " This only gives privacy if the inputs really belong to different people, which cannot be verified on chain.";
+
 export function buildWhirlpoolFinding(pool: WhirlpoolPool, txTime: number | undefined): Finding {
   const denom = formatBtc(pool.sats);
   const isSamourai = pool.era === "samourai";
@@ -116,7 +120,8 @@ export function buildJoinMarketFinding(
         ? "This is a changeless CoinJoin - no participant change is identifiable, providing stronger privacy. "
         : `The ${changeCount} change output${changeCount > 1 ? "s are" : " is"} trivially linkable to specific inputs via subset-sum analysis, ` +
           "since the taker pays an on-chain fee to makers. An observer can match each change to its corresponding input by finding which input subsets produce the denomination plus change. ") +
-      `The anonymity set is ${count} (the number of equal outputs), which is lower than typical Whirlpool (5 per round) or WabiSabi (50+) CoinJoins.`,
+      `The anonymity set is ${count} (the number of equal outputs), which is lower than typical Whirlpool (5 per round) or WabiSabi (50+) CoinJoins.` +
+      PARTICIPANTS_NOTE,
     recommendation:
       "JoinMarket provides privacy through its decentralized maker/taker model, but has known weaknesses: " +
       "change outputs are vulnerable to subset-sum analysis (CoinJoin Sudoku), and the single denomination makes the transaction pattern identifiable. " +
@@ -193,7 +198,8 @@ export function buildGenericCoinJoinFinding(
       `${count} of ${total} outputs have the same value (${formatBtc(denomination)})` +
       (isActualWabiSabi ? ", the largest equal-value group among several denomination tiers. " : ". ") +
       "This pattern is characteristic of collaborative CoinJoin transactions that break the " +
-      "link between inputs and outputs, significantly improving privacy.",
+      "link between inputs and outputs, significantly improving privacy." +
+      (isActualWabiSabi ? "" : PARTICIPANTS_NOTE),
     recommendation:
       (isActualWabiSabi
         ? "WabiSabi CoinJoins provide excellent privacy through large anonymity sets and multiple denomination tiers. Continue using CoinJoin for maximum privacy. "
@@ -340,7 +346,8 @@ export function buildSmallJoinMarketFinding(
       "Unlike Whirlpool or WabiSabi, JoinMarket uses a single arbitrary denomination chosen by the taker, " +
       "and the taker pays an on-chain fee to makers - making change outputs vulnerable to subset-sum analysis (CoinJoin Sudoku)." +
       takerNote +
-      ` The anonymity set is ${joinmarket.equalCount} (the number of equal outputs).`,
+      ` The anonymity set is ${joinmarket.equalCount} (the number of equal outputs).` +
+      PARTICIPANTS_NOTE,
     recommendation:
       "JoinMarket provides privacy through its decentralized maker/taker model, but has known weaknesses: " +
       "change outputs are vulnerable to subset-sum analysis, and the single denomination makes the pattern identifiable. " +
@@ -371,5 +378,50 @@ export function buildExchangeFlaggingFinding(): Finding {
       "Use decentralized, non-custodial exchanges (Bisq, RoboSats, Hodl Hodl) that do not apply chain surveillance. " +
       "Maintain strict separation between privacy wallets and exchange wallets.",
     scoreImpact: 0,
+  };
+}
+
+const SINGLE_ENTITY_TEXT = {
+  rbf: {
+    title: "This JoinMarket-like transaction may have been created by one wallet",
+    description:
+      "JoinMarket does not signal RBF, but this transaction does. The equal outputs may all belong to the wallet that built it. " +
+      "A CoinJoin only gives privacy if its inputs belong to different people, so the JoinMarket bonus is not counted.",
+  },
+  linked: {
+    title: "This JoinMarket-like transaction may have been created by one wallet",
+    description:
+      "The inputs are linked (a reused address, a shared funding transaction, or fewer independent input groups than equal outputs), " +
+      "and no change output fits the fee a JoinMarket maker earns. The equal outputs may all belong to the wallet that built it. " +
+      "A CoinJoin only gives privacy if its inputs belong to different people, so the JoinMarket bonus is not counted.",
+  },
+  cospent: {
+    title: "Equal outputs of this CoinJoin were later spent together",
+    description:
+      "Two or more equal outputs of this transaction were later spent together in a transaction that is not a CoinJoin. " +
+      "Here each participant receives exactly one equal output, so one wallet held at least two of them, and the ambiguity those outputs were meant to create is gone. " +
+      "The CoinJoin bonus is not counted.",
+  },
+} as const;
+
+/**
+ * Offsets a CoinJoin bonus exactly (scoreImpact = -bonus) while the CoinJoin
+ * label, and with it the CoinJoin suppressions, stay. "rbf" and "linked" are
+ * probabilistic hints on a JoinMarket label; "cospent" is observed after the
+ * fact (equal outputs of a one-output-per-participant CoinJoin spent together).
+ */
+export function buildSingleEntityFinding(reason: keyof typeof SINGLE_ENTITY_TEXT, bonus: number): Finding {
+  const cospent = reason === "cospent";
+  return {
+    id: "h4-coinjoin-single-entity",
+    severity: cospent ? "high" : "medium",
+    confidence: cospent ? "deterministic" : "medium",
+    title: SINGLE_ENTITY_TEXT[reason].title,
+    params: { bonus, _variant: reason },
+    description: SINGLE_ENTITY_TEXT[reason].description,
+    recommendation:
+      "A CoinJoin built by one wallet, or whose outputs are later merged, does not hide which coins belong together. " +
+      "Mix with other people (JoinMarket, WabiSabi or Whirlpool) and spend each equal output separately.",
+    scoreImpact: -bonus,
   };
 }

@@ -1,4 +1,14 @@
 import type { Finding } from "@/lib/types";
+import { buildSingleEntityFinding } from "../heuristics/coinjoin-findings";
+
+/**
+ * CoinJoins where each participant receives exactly one equal output. Not
+ * h4-coinjoin: in WabiSabi (and Wasabi 1.x) one user often holds several
+ * outputs of a denomination, so spending them together proves nothing more.
+ */
+const ONE_EQUAL_OUTPUT_PER_PARTICIPANT = new Set<string>([
+  "h4-whirlpool", "h4-joinmarket", "h4-stonewall", "h4-simplified-stonewall",
+]);
 
 /**
  * Chain bonuses that all reward the same fact: the inputs come from a
@@ -132,6 +142,18 @@ export function applyCompoundScoringAdjustments(findings: Finding[]): void {
       _variant: "postmix",
       context: "postmix-consolidation-to-entity",
     };
+  }
+
+  // Equal outputs of a one-output-per-participant CoinJoin spent together
+  // later (non-CoinJoin child): one wallet held 2+ of them, so the tx's
+  // CoinJoin bonus is offset. The consolidation penalty stays; a bonus
+  // already offset by the single-entity hint is not offset twice.
+  const equalCospent = findings.some(
+    (f) => f.id === "chain-post-coinjoin-consolidation" && f.params?.equalCospent === 1,
+  );
+  const oneOutputCoinJoin = findings.find((f) => ONE_EQUAL_OUTPUT_PER_PARTICIPANT.has(f.id) && f.scoreImpact > 0);
+  if (equalCospent && oneOutputCoinJoin && !findings.some((f) => f.id === "h4-coinjoin-single-entity")) {
+    findings.push(buildSingleEntityFinding("cospent", oneOutputCoinJoin.scoreImpact));
   }
 
   // Post-mix + backward CoinJoin dedup: when post-mix consolidation reduces
