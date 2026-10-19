@@ -269,9 +269,9 @@ describe("analyzeCoinJoin", () => {
       vout: [
         makeVout({ value: 500_000, scriptpubkey_address: "bc1qjm1_0000000000000000000000000000000000" }),
         makeVout({ value: 500_000, scriptpubkey_address: "bc1qjm2_0000000000000000000000000000000000" }),
+        makeVout({ value: 500_000, scriptpubkey_address: "bc1qjm3_0000000000000000000000000000000000" }),
         makeVout({ value: 300_000 }), // change 1
         makeVout({ value: 200_000 }), // change 2
-        makeVout({ value: 100_000 }), // change 3
       ],
     });
     const { findings } = analyzeCoinJoin(tx);
@@ -711,7 +711,7 @@ describe("CoinJoin detection ignores single-owner structure", () => {
 
   it("still detects a CoinJoin when inputs come from distinct addresses", () => {
     const tx = makeTx({
-      vin: [vinFrom("bc1qpartya", 600_000), vinFrom("bc1qpartyb", 900_000)],
+      vin: ["a", "b", "c", "d", "e", "f"].map((p) => vinFrom(`bc1qparty${p}`, 250_000)),
       vout: [...Array.from({ length: 6 }, () => makeVout({ value: 200_000 })), makeVout({ value: 290_000 })],
     });
     expect(analyzeCoinJoin(tx).findings.some(isCoinJoinFinding)).toBe(true);

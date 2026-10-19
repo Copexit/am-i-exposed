@@ -112,12 +112,29 @@ export function detectEqualOutputs(
 }
 
 /**
+ * JoinMarket participant arithmetic. Every participant (the taker and each
+ * maker) funds exactly one equal output from its own inputs and takes at most
+ * one change output, so n equal outputs need n input owners (at most the
+ * distinct input addresses) and leave at most 2n outputs. A tx that breaks
+ * this cannot be a JoinMarket round (e.g. one wallet's 2 inputs paying 5
+ * equal outputs, or a batch payout with one repeated amount).
+ */
+export function fitsJoinMarketParticipants(
+  distinctInputAddresses: number,
+  equalCount: number,
+  outputCount: number,
+): boolean {
+  return equalCount <= distinctInputAddresses && outputCount <= 2 * equalCount;
+}
+
+/**
  * Detect JoinMarket CoinJoin pattern.
  *
  * JoinMarket uses a maker/taker model with 2-10 inputs, 3-8 spendable outputs,
  * and 2-4 equal-valued outputs at a non-Whirlpool denomination above the dust
- * threshold. Inputs must come from at least 2 distinct addresses, and equal
- * outputs must go to distinct addresses.
+ * threshold. Inputs must come from at least 2 distinct addresses, equal
+ * outputs must go to distinct addresses, and the counts must fit the
+ * participant arithmetic (fitsJoinMarketParticipants).
  */
 export function detectJoinMarket(
   vin: { prevout?: { scriptpubkey_address?: string; value?: number } | null }[],
@@ -164,6 +181,8 @@ export function detectJoinMarket(
     }
   }
   if (equalAddresses.size < bestCount) return null;
+
+  if (!fitsJoinMarketParticipants(inputAddresses.size, bestCount, spendableOutputs.length)) return null;
 
   return {
     equalCount: bestCount,

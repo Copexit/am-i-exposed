@@ -4,6 +4,7 @@ import { isCoinJoinTx } from "../heuristics/coinjoin";
 import { getSpendableOutputs, countOutputValues } from "../heuristics/tx-utils";
 import { truncateId } from "@/lib/constants";
 import { detectTx0 } from "../heuristics/coinjoin-premix";
+import { classifyWabiSabi } from "../heuristics/wabisabi";
 import { fmtN } from "@/lib/format";
 import type { TraceLayer } from "./recursive-trace";
 
@@ -167,6 +168,14 @@ export function analyzeForward(
       });
     }
 
+    // 2+ outputs of one value in one group: equal outputs spent together
+    // (the CoinJoin bonus is cancelled in compound scoring, not for WabiSabi).
+    // A tx with every WabiSabi coordinator rule but thin denomination evidence
+    // is a small WabiSabi round, where one user may hold several equal outputs.
+    const equalCospent = classifyWabiSabi(tx).failed !== "denominations" && [...consolidationGroups.values()].some(
+      (indices) => new Set(indices.map((i) => tx.vout[i]?.value)).size < indices.length,
+    );
+
     findings.push({
       id: "chain-post-coinjoin-consolidation",
       severity: "critical",
@@ -183,6 +192,7 @@ export function analyzeForward(
         consolidatedIndices: consolidatedCoinJoinOutputs.join(","),
         childTxid: [...consolidationGroups.keys()][0] ?? "",
         _consolidationGroups: JSON.stringify(serializedGroups),
+        ...(equalCospent ? { equalCospent: 1 } : {}),
       },
       confidence: "deterministic",
     });
