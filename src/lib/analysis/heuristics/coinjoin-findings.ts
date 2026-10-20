@@ -395,6 +395,14 @@ const SINGLE_ENTITY_TEXT = {
       "and no change output fits the fee a JoinMarket maker earns. The equal outputs may all belong to the wallet that built it. " +
       "A CoinJoin only gives privacy if its inputs belong to different people, so the JoinMarket bonus is not counted.",
   },
+  isolated: {
+    title: "This CoinJoin-like transaction may have been created by one wallet",
+    description:
+      "No input came from an earlier CoinJoin, and none of the equal outputs already spent went into a later one. " +
+      "Real CoinJoins usually form chains: their coins come from earlier rounds and are mixed again, while a CoinJoin made by one wallet is usually a one-off. " +
+      "The equal outputs may all belong to the wallet that built it. " +
+      "A CoinJoin only gives privacy if its inputs belong to different people, so the CoinJoin bonus is not counted.",
+  },
   cospent: {
     title: "Equal outputs of this CoinJoin were later spent together",
     description:
@@ -406,8 +414,8 @@ const SINGLE_ENTITY_TEXT = {
 
 /**
  * Offsets a CoinJoin bonus exactly (scoreImpact = -bonus) while the CoinJoin
- * label, and with it the CoinJoin suppressions, stay. "rbf" and "linked" are
- * probabilistic hints on a JoinMarket label; "cospent" is observed after the
+ * label, and with it the CoinJoin suppressions, stay. "rbf", "linked" and
+ * "isolated" are probabilistic hints on a JoinMarket label; "cospent" is observed after the
  * fact (equal outputs of a one-output-per-participant CoinJoin spent together).
  */
 export function buildSingleEntityFinding(reason: keyof typeof SINGLE_ENTITY_TEXT, bonus: number): Finding {

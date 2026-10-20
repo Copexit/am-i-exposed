@@ -145,6 +145,40 @@ function joinMarketSingleEntityHint(
     : null;
 }
 
+/** Spent equal outputs needed before "isolated" can fire. */
+const ISOLATED_MIN_SPENT = 2;
+
+/**
+ * Isolated (probabilistic): real CoinJoins live in chains (Whirlpool inputs
+ * come from a Tx0 or an earlier round, JoinMarket makers re-offer their
+ * coins, Wasabi remixes), a CoinJoin made by one wallet is usually a one-off.
+ * Holds when every parent is known and none is a CoinJoin (permissive check,
+ * isLikelyCoinJoinTx included) or a Tx0, at least ISOLATED_MIN_SPENT equal
+ * outputs are spent and the spending tx of every spent equal output is known
+ * and is not a CoinJoin (same permissive check). Any missing parent, outspend
+ * or child means no evidence (false). On the study set: 1/188 real JoinMarket
+ * rounds (that one already RBF-flagged), 0/774 Whirlpool, 0/999 WabiSabi.
+ */
+function isIsolated(tx: Tx, denomination: number, ctx: Ctx): boolean {
+  const { parentTxs, outspends, childTxs } = ctx ?? {};
+  if (!parentTxs || !outspends || !childTxs) return false;
+  for (const v of tx.vin) {
+    const parent = v.is_coinbase ? undefined : parentTxs.get(v.txid);
+    if (!parent || isCoinJoinTx(parent) || isLikelyCoinJoinTx(parent) || detectTx0(parent)) return false;
+  }
+  let spent = 0;
+  for (const [i, o] of tx.vout.entries()) {
+    if (o.value !== denomination) continue;
+    const os = outspends[i];
+    if (!os) return false;
+    if (!os.spent) continue;
+    const child = childTxs.get(i);
+    if (!child || isCoinJoinTx(child) || isLikelyCoinJoinTx(child)) return false;
+    spent++;
+  }
+  return spent >= ISOLATED_MIN_SPENT;
+}
+
 /**
  * H4: CoinJoin Detection
  *
@@ -225,7 +259,12 @@ export const analyzeCoinJoin: TxHeuristic = (tx, _rawHex, ctx: Ctx) => {
     } else if (kind === "generic") {
       // Multiple denomination tiers or non-dominant single denom, but not the
       // WabiSabi structure: a CoinJoin of unknown implementation
-      findings.push(buildGenericCoinJoinFinding(count, denomination, total, tx.vin.length, false));
+      const generic = buildGenericCoinJoinFinding(count, denomination, total, tx.vin.length, false);
+      findings.push(generic);
+      // Same guard as the JoinMarket hint: not a small WabiSabi round
+      if (wabiSabi?.failed !== "denominations" && isIsolated(tx, denomination, ctx)) {
+        findings.push(buildSingleEntityFinding("isolated", generic.scoreImpact));
+      }
     }
   }
 
@@ -266,7 +305,8 @@ export const analyzeCoinJoin: TxHeuristic = (tx, _rawHex, ctx: Ctx) => {
   // equal outputs.
   const joinMarketFinding = findings.find((f) => f.id === "h4-joinmarket");
   if (joinMarket && joinMarketFinding && wabiSabi?.failed !== "denominations") {
-    const hint = joinMarketSingleEntityHint(tx, spendableOutputs, joinMarket.denomination, joinMarket.count, ctx?.parentTxs);
+    const hint = joinMarketSingleEntityHint(tx, spendableOutputs, joinMarket.denomination, joinMarket.count, ctx?.parentTxs)
+      ?? (isIsolated(tx, joinMarket.denomination, ctx) ? "isolated" : null);
     if (hint) findings.push(buildSingleEntityFinding(hint, joinMarketFinding.scoreImpact));
   }
 
@@ -324,6 +364,27 @@ export function isCoinJoinTx(tx: Tx): boolean {
 
   // Small-scale JoinMarket
   if (detectJoinMarket(tx.vin, spendable)) return true;
+
+  return false;
+}
+
+/**
+ * Permissive CoinJoin check for suppression only. Catches edge-case remixes
+ * that `isCoinJoinTx` misses (fewer participants, sub-10k denoms, etc.).
+ * Errs on the side of suppression to avoid false consolidation accusations.
+ */
+export function isLikelyCoinJoinTx(tx: Tx): boolean {
+  const spendable = getSpendableOutputs(tx.vout);
+  const distinctParents = new Set(tx.vin.map((v) => v.txid));
+
+  // Signal 1: 5+ distinct input sources + 5+ outputs = multi-party
+  if (distinctParents.size >= 5 && spendable.length >= 5) return true;
+
+  // Signal 2: 3+ distinct sources + equal-value output group
+  if (distinctParents.size >= 3 && spendable.length >= 3) {
+    const counts = countOutputValues(spendable);
+    if ([...counts.values()].some((c) => c >= 2)) return true;
+  }
 
   return false;
 }

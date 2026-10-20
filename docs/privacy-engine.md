@@ -265,7 +265,7 @@ Sources: WalletWasabi [`DenominationBuilder.cs`](https://github.com/WalletWasabi
 - Identifiable by the characteristic pattern of equal-value outputs mixed with varied change outputs
 - Participant arithmetic (`fitsJoinMarketParticipants`, both JoinMarket paths and `isCoinJoinTx`): each participant funds exactly one equal output from its own inputs and takes at most one change, so n equal outputs need n <= distinct input addresses and at most 2n outputs (OP_RETURN and outputs paying back to an input address are not counted). A JoinMarket shape that breaks this is not a CoinJoin at all, so the single-wallet findings (CIOH, change, round amounts, fingerprints) apply again. Example: 2 inputs paying 5 equal outputs plus 3 others. On the study set (mempool.space, 2021-2026) this removed 34 of 40 JoinMarket labels on block-sampled txs that are not JoinMarket-shaped (batch payouts with one repeated amount) and 2 of ~1,800 rounds in the JoinMarket reference sets (both with a reused input address, so fewer addresses than equal outputs).
 
-**Single-entity hint on a JoinMarket label** (`h4-coinjoin-single-entity`, variants `rbf` and `linked`, medium)
+**Single-entity hint on a JoinMarket label** (`h4-coinjoin-single-entity`, variants `rbf` and `linked`, medium; see also `isolated` below)
 
 Probabilistic, never proof: the finding says the equal outputs *may* all belong to the wallet that built the tx. It fires on an `h4-joinmarket` tx when:
 
@@ -273,6 +273,29 @@ Probabilistic, never proof: the finding says the equal outputs *may* all belong 
 - LINK and G both hold. LINK: an input address repeats, or 2+ inputs were created by the same non-CoinJoin parent, or there are fewer independent input clusters than equal outputs (inputs whose non-CoinJoin parents share an input address count as one cluster). The parent clauses use the parents fetched by the backward trace and are skipped without them. G: 3+ equal outputs and no change output fits a maker's change, i.e. no input subset (up to 3 inputs; 2 above 16 inputs, 1 above 40) gives subset - equal - change within [-(0.3% of equal + 5,000), +2,000] sats (a maker earns a fee, so its change is a little more than its inputs minus the equal output).
 
 It is skipped when the tx follows every WabiSabi coordinator rule and only lacks the denomination evidence (a small WabiSabi round). The label stays and the CoinJoin suppressions stay; the finding's `scoreImpact` is minus the JoinMarket bonus, so the bonus is cancelled exactly. Measured on ~1,100 JoinMarket rounds whose inputs come from 2+ earlier CoinJoins: fires on 0.3-0.4% (all RBF); on 17 JoinMarket-labelled txs whose equal outputs were later co-spent (the single-entity proxy) about 70%.
+
+**Isolated CoinJoin** (`h4-coinjoin-single-entity`, variant `isolated`, medium, probabilistic)
+
+Real CoinJoins live in chains: Whirlpool inputs come from a Tx0 or an earlier cycle and post-mix outputs remix for free, JoinMarket makers re-offer their coins in later rounds, Wasabi keeps remixing until the target anonymity score. A CoinJoin made by one wallet is usually a one-off. On an `h4-joinmarket` label, or an `h4-coinjoin` label that is not WabiSabi or Wasabi 1.x (generic), the finding fires when all of these hold:
+
+- (a) every input's parent is known and none is a CoinJoin or a Tx0. The check is permissive: `isCoinJoinTx`, `detectTx0` or `isLikelyCoinJoinTx` (5+ input sources and 5+ outputs, or 3+ sources with a repeated output value) on the parent rules it out;
+- (b) at least 2 equal outputs are already spent;
+- (c) the spending tx of every spent equal output is known and none is a CoinJoin (same permissive check).
+
+It uses only what the scan already has with default settings: the parents from the first backward trace layer and the outspends plus the first forward trace layer (`TxContext.outspends` and `childTxs`). A missing parent (input under `minSats`, more than 50 parents, timeout), outspend or child means no evidence and the finding does not fire, so the CLI and the per-tx views of address and wallet scans, which do not fetch children, never show it. It is skipped when the tx follows every WabiSabi coordinator rule and only lacks the denomination evidence (a small WabiSabi round). It never stacks with `rbf` or `linked`, and an observed co-spend of equal outputs (`cospent`) replaces it. The label and the CoinJoin suppressions stay; `scoreImpact` is minus the CoinJoin bonus.
+
+Measured (mempool.space, 2023 to 2026, reference sets built without chain linkage):
+
+| Set | n | `isolated` fires |
+|---|---|---|
+| Whirlpool cycles (whirlpoolstats.xyz) | 774 | 0 (95% upper bound ~0.4%) |
+| WabiSabi rounds (LiquiSabi, uniform) | 399 | 0 |
+| WabiSabi rounds (LiquiSabi, 50 or fewer inputs) | 600 | 0 |
+| JoinMarket rounds (block-sampled, changes fit maker fees) | 188 | 1 (0.5%), already flagged `rbf`, so no score change |
+| Proxy: JoinMarket label, 2+ equal outputs co-spent within a week | 22 | 9 (41%) |
+| Proxy: generic label, 2+ equal outputs co-spent within a week | 56 | 7 (12.5%) |
+
+The strict variant (engine `isCoinJoinTx` only) fired on 3/188 real JoinMarket rounds (1.6%), the reason for the permissive check. Rule (a) alone fires on 2.1% of real JoinMarket rounds (takers often bring fresh coins), so all three conditions are needed. The proxy is a proxy: co-spent equal outputs show one wallet held 2+ of them, not that it built the tx. Most generic-labelled hits are batch payouts (2-3 inputs, dozens of outputs with one repeated amount).
 
 **Unknown implementation note:** the JoinMarket and generic equal-output descriptions end with "This only gives privacy if the inputs really belong to different people, which cannot be verified on chain." Whirlpool, Wasabi 1.x and WabiSabi match coordinator fingerprints and do not carry it; Stonewall does not either, because a solo Stonewall is one wallet by design and its ambiguity does not depend on several owners.
 
@@ -297,7 +320,7 @@ CoinJoin is not a silver bullet. Post-mix behavior matters enormously. If a user
 - Equal-output generic CoinJoin (5+ equal): +15 to +25
 - Stonewall pattern: +15
 - JoinMarket-pattern CoinJoin detected: +15 to +25
-- `h4-coinjoin-single-entity`: minus the CoinJoin bonus (hint on a JoinMarket label, or equal outputs later spent together, see Compound Scoring Adjustments)
+- `h4-coinjoin-single-entity`: minus the CoinJoin bonus (hint on a JoinMarket label, an isolated JoinMarket or generic CoinJoin, or equal outputs later spent together, see Compound Scoring Adjustments)
 
 **References**
 - Maxwell, "CoinJoin: Bitcoin privacy for the real world" (2013) - original proposal on bitcointalk
@@ -1777,7 +1800,7 @@ Sub-rules that detect when multiple findings together indicate a stronger (or we
 
 **Chain overlap dedup:** Chain findings count toward the grade, so one fact is scored once. `chain-coinjoin-input`, `chain-coinjoin-ancestry` and the CoinJoin-origin `chain-ricochet` all reward CoinJoin provenance: only the strongest keeps its score, the others get `scoreImpact: 0` and `params.context: "overlap"` (an Ashigaru Ricochet hop is a separate fact and keeps its bonus). Likewise `chain-entity-proximity-backward` and `chain-taint-backward` both penalize an entity among the parent's inputs: only the stronger penalty counts. Entity proximity never matches the analyzed transaction's own addresses, and taint only scores the fraction reached through parents, because `entity-detection` already scores the transaction's own addresses.
 
-**Equal outputs spent together after the fact:** When `chain-post-coinjoin-consolidation` shows 2+ outputs of the same value (equal outputs) spent together in one non-CoinJoin child, and the tx is a Whirlpool, JoinMarket, Stonewall or simplified Stonewall (each participant receives exactly one equal output), one wallet held at least two of them. The -15 consolidation finding stays and `h4-coinjoin-single-entity` (variant `cospent`, high, deterministic) cancels the tx's CoinJoin bonus. Never for `h4-coinjoin` (WabiSabi, Wasabi 1.x, generic): one WabiSabi user often holds several outputs of a denomination (62% of LiquiSabi-labelled rounds show such a co-spend), so WabiSabi keeps only the -15; the same holds for a tx that follows every WabiSabi coordinator rule but lacks the denomination evidence. Not applied twice when the single-entity hint already cancelled the bonus. Measured: 0/525 Whirlpool and 1/1,134 JoinMarket reference rounds show such a co-spend.
+**Equal outputs spent together after the fact:** When `chain-post-coinjoin-consolidation` shows 2+ outputs of the same value (equal outputs) spent together in one non-CoinJoin child, and the tx is a Whirlpool, JoinMarket, Stonewall or simplified Stonewall (each participant receives exactly one equal output), one wallet held at least two of them. The -15 consolidation finding stays and `h4-coinjoin-single-entity` (variant `cospent`, high, deterministic) cancels the tx's CoinJoin bonus. Never for `h4-coinjoin` (WabiSabi, Wasabi 1.x, generic): one WabiSabi user often holds several outputs of a denomination (62% of LiquiSabi-labelled rounds show such a co-spend), so WabiSabi keeps only the -15; the same holds for a tx that follows every WabiSabi coordinator rule but lacks the denomination evidence. Not applied twice when the single-entity hint already cancelled the bonus; it replaces the weaker `isolated` hint (same offset). Measured: 0/525 Whirlpool and 1/1,134 JoinMarket reference rounds show such a co-spend.
 
 **Post-mix backward CoinJoin dedup:** When post-mix consolidation is present, the surviving CoinJoin provenance bonus (`chain-coinjoin-input`, `chain-coinjoin-ancestry` or CoinJoin-origin `chain-ricochet`) is reduced or zeroed. The post-mix consolidation already accounts for and penalizes this pattern; giving a CoinJoin bonus for the parent transactions would partially offset the consolidation penalty.
 

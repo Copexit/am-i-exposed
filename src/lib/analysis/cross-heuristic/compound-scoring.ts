@@ -147,13 +147,18 @@ export function applyCompoundScoringAdjustments(findings: Finding[]): void {
   // Equal outputs of a one-output-per-participant CoinJoin spent together
   // later (non-CoinJoin child): one wallet held 2+ of them, so the tx's
   // CoinJoin bonus is offset. The consolidation penalty stays; a bonus
-  // already offset by the single-entity hint is not offset twice.
+  // already offset by the single-entity hint is not offset twice. The observed
+  // co-spend replaces the weaker "isolated" hint (same offset).
   const equalCospent = findings.some(
     (f) => f.id === "chain-post-coinjoin-consolidation" && f.params?.equalCospent === 1,
   );
   const oneOutputCoinJoin = findings.find((f) => ONE_EQUAL_OUTPUT_PER_PARTICIPANT.has(f.id) && f.scoreImpact > 0);
-  if (equalCospent && oneOutputCoinJoin && !findings.some((f) => f.id === "h4-coinjoin-single-entity")) {
-    findings.push(buildSingleEntityFinding("cospent", oneOutputCoinJoin.scoreImpact));
+  if (equalCospent && oneOutputCoinJoin) {
+    const isolated = findings.findIndex((f) => f.id === "h4-coinjoin-single-entity" && f.params?._variant === "isolated");
+    if (isolated >= 0) findings.splice(isolated, 1);
+    if (!findings.some((f) => f.id === "h4-coinjoin-single-entity")) {
+      findings.push(buildSingleEntityFinding("cospent", oneOutputCoinJoin.scoreImpact));
+    }
   }
 
   // Post-mix + backward CoinJoin dedup: when post-mix consolidation reduces

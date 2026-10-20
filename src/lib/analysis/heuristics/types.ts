@@ -3,6 +3,7 @@ import type {
   MempoolTransaction,
   MempoolAddress,
   MempoolUtxo,
+  MempoolOutspend,
 } from "@/lib/api/types";
 
 /** Translation function passed from React layer to analysis code. */
@@ -26,6 +27,10 @@ export interface TxContext {
   parentTxs?: Map<string, MempoolTransaction>;
   /** A child transaction that spends one of our outputs (pre-fetched for peel chain detection). */
   childTx?: MempoolTransaction;
+  /** Spending status of every output (confirmed txs). */
+  outspends?: MempoolOutspend[];
+  /** Spending tx by output index, from the forward trace (missing = not fetched). */
+  childTxs?: Map<number, MempoolTransaction>;
   /** Map of output address → total on-chain tx count (for fresh address change detection). */
   outputTxCounts?: Map<string, number>;
 }
