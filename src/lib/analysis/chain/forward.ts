@@ -1,33 +1,12 @@
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
-import { isCoinJoinTx } from "../heuristics/coinjoin";
-import { getSpendableOutputs, countOutputValues } from "../heuristics/tx-utils";
+import { isCoinJoinTx, isLikelyCoinJoinTx } from "../heuristics/coinjoin";
+import { getSpendableOutputs } from "../heuristics/tx-utils";
 import { truncateId } from "@/lib/constants";
 import { detectTx0 } from "../heuristics/coinjoin-premix";
 import { classifyWabiSabi } from "../heuristics/wabisabi";
 import { fmtN } from "@/lib/format";
 import type { TraceLayer } from "./recursive-trace";
-
-/**
- * Permissive CoinJoin check for suppression only. Catches edge-case remixes
- * that `isCoinJoinTx` misses (fewer participants, sub-10k denoms, etc.).
- * Errs on the side of suppression to avoid false consolidation accusations.
- */
-function isLikelyCoinJoinTx(tx: MempoolTransaction): boolean {
-  const spendable = getSpendableOutputs(tx.vout);
-  const distinctParents = new Set(tx.vin.map((v) => v.txid));
-
-  // Signal 1: 5+ distinct input sources + 5+ outputs = multi-party
-  if (distinctParents.size >= 5 && spendable.length >= 5) return true;
-
-  // Signal 2: 3+ distinct sources + equal-value output group
-  if (distinctParents.size >= 3 && spendable.length >= 3) {
-    const counts = countOutputValues(spendable);
-    if ([...counts.values()].some((c) => c >= 2)) return true;
-  }
-
-  return false;
-}
 
 /**
  * If `tx` is a peel hop (1 input, 2 spendable outputs, smaller < 30% of the

@@ -246,3 +246,129 @@ describe("participants note", () => {
     expect(wabisabi.description).not.toContain(note);
   });
 });
+
+describe("isolated: no CoinJoin parent, no spent equal output remixed", () => {
+  /** A plain 1-in, 2-out payment (not a CoinJoin), optionally with a fixed txid. */
+  const plain = (txid: string) => makeTx({ txid, vin: [makeVin()], vout: [makeVout({ value: 600_000 }), makeVout({ value: 400_000 })] });
+  /** A CoinJoin-shaped tx (Whirlpool fixture) under another txid. */
+  const coinJoin = (txid: string) => ({ ...(whirlpoolTx as unknown as MempoolTransaction), txid });
+
+  /**
+   * Chain context: every parent known and plain, the equal outputs at `spent`
+   * spent one by one into plain txs. `cjParent` / `remix` swap one parent /
+   * child for a CoinJoin; `missingParent` / `missingChild` leave one out.
+   */
+  function chainCtx(
+    tx: MempoolTransaction,
+    spent: number[],
+    opts: { cjParent?: boolean; remix?: boolean; missingParent?: boolean; missingChild?: boolean } = {},
+  ): TxContext {
+    const parentTxs = new Map(tx.vin.map((v, i) => [v.txid, i === 0 && opts.cjParent ? coinJoin(v.txid) : plain(v.txid)]));
+    if (opts.missingParent) parentTxs.delete(tx.vin[0]!.txid);
+    const childTxs = new Map(spent.map((i, k) => [i, k === 0 && opts.remix ? coinJoin(`${k}`.repeat(64)) : plain(`${k + 1}`.repeat(64))]));
+    const outspends = tx.vout.map((_, i) => makeOutspend(spent.includes(i) ? { spent: true, txid: childTxs.get(i)!.txid } : {}));
+    if (opts.missingChild) childTxs.delete(spent[0]!);
+    return { parentTxs, outspends, childTxs };
+  }
+  const variant = (tx: MempoolTransaction, ctx?: TxContext) =>
+    analyzeCoinJoin(tx, undefined, ctx).findings.find((f) => f.id === "h4-coinjoin-single-entity")?.params?._variant;
+
+  it("fires on a JoinMarket label: label kept, bonus offset exactly, suppressions stay", () => {
+    const tx = realJoinMarket();
+    const result = score(tx, chainCtx(tx, [0, 1]));
+    const jm = result.findings.find((f) => f.id === "h4-joinmarket")!;
+    const hint = result.findings.find((f) => f.id === "h4-coinjoin-single-entity")!;
+    expect(hint.params?._variant).toBe("isolated");
+    expect(hint.severity).toBe("medium");
+    expect(hint.scoreImpact).toBe(-jm.scoreImpact);
+    expect(hint.description).toContain("may");
+    expect(result.txType).toBe("joinmarket-coinjoin");
+    expect(result.findings.find((f) => f.id === "h3-cioh")!.scoreImpact).toBe(0);
+  });
+
+  it("does not fire with a CoinJoin parent, a remixed output, or fewer than 2 spent equal outputs", () => {
+    const tx = realJoinMarket();
+    expect(variant(tx, chainCtx(tx, [0, 1], { cjParent: true }))).toBeUndefined();
+    expect(variant(tx, chainCtx(tx, [0, 1, 2], { remix: true }))).toBeUndefined();
+    expect(variant(tx, chainCtx(tx, [0]))).toBeUndefined();
+    expect(variant(tx, chainCtx(tx, [0, 5]))).toBeUndefined(); // a change is not an equal output
+    // a parent that only the permissive check sees as multi-party (5 sources, 5 outputs)
+    const ctx = chainCtx(tx, [0, 1]);
+    const multiParty = makeTx({
+      txid: tx.vin[1]!.txid,
+      vin: Array.from({ length: 5 }, (_, i) => makeVin({ txid: `${i + 1}`.repeat(64) })),
+      vout: Array.from({ length: 5 }, (_, i) => makeVout({ value: 300_000 + i * 1_000 })),
+    });
+    expect(isCoinJoinTx(multiParty)).toBe(false);
+    ctx.parentTxs!.set(multiParty.txid, multiParty);
+    expect(variant(tx, ctx)).toBeUndefined();
+  });
+
+  it("missing parent, outspend or child data means no evidence", () => {
+    const tx = realJoinMarket();
+    expect(variant(tx, chainCtx(tx, [0, 1], { missingParent: true }))).toBeUndefined();
+    expect(variant(tx, chainCtx(tx, [0, 1, 2], { missingChild: true }))).toBeUndefined();
+    const { parentTxs, childTxs } = chainCtx(tx, [0, 1]);
+    expect(variant(tx, { parentTxs: parentTxs!, childTxs: childTxs! })).toBeUndefined();
+    expect(variant(tx)).toBeUndefined();
+  });
+
+  it("never stacks: RBF wins over isolated", () => {
+    const tx = realJoinMarket(0xfffffffd);
+    const { findings } = analyzeCoinJoin(tx, undefined, chainCtx(tx, [0, 1]));
+    expect(findings.filter((f) => f.id === "h4-coinjoin-single-entity").map((f) => f.params?._variant)).toEqual(["rbf"]);
+  });
+
+  it("an observed co-spend replaces isolated (same offset, once)", () => {
+    const tx = realJoinMarket();
+    const children = cospend(tx, [0, 1]);
+    const ctx = chainCtx(tx, [0, 1]);
+    const result = score(tx, { ...ctx, childTxs: children }, children);
+    const jm = result.findings.find((f) => f.id === "h4-joinmarket")!;
+    const hints = result.findings.filter((f) => f.id === "h4-coinjoin-single-entity");
+    expect(hints.map((f) => f.params?._variant)).toEqual(["cospent"]);
+    expect(hints[0]!.scoreImpact).toBe(-jm.scoreImpact);
+  });
+
+  it.each([
+    ["Whirlpool", whirlpoolTx],
+    ["WabiSabi", wabisabiTx],
+    ["JoinMarket", joinmarketTx],
+  ] as const)("%s fixture keeps its exact score with a CoinJoin parent or a remixed output", (_name, fixture) => {
+    const tx = fixture as unknown as MempoolTransaction;
+    const equal = tx.vout.map((o, i) => [o.value, i] as const)
+      .filter(([v], _, all) => all.filter(([w]) => w === v).length >= 2).map(([, i]) => i);
+    const sameScore = (ctx: TxContext) => {
+      const r = score(tx, ctx);
+      expect(r.findings.some((f) => f.id === "h4-coinjoin-single-entity")).toBe(false);
+      expect(r.score).toBe(score(tx, { parentTxs: ctx.parentTxs! }).score);
+    };
+    sameScore(chainCtx(tx, equal, { cjParent: true }));
+    sameScore(chainCtx(tx, equal, { remix: true }));
+  });
+
+  it("fires on a generic CoinJoin label too, offsetting its bonus", () => {
+    const tx = makeTx({
+      vin: Array.from({ length: 8 }, (_, i) => vin(2_000_000, i)),
+      vout: [
+        ...Array.from({ length: 5 }, () => makeVout({ value: DENOM })),
+        ...Array.from({ length: 3 }, () => makeVout({ value: 700_000 })),
+      ],
+    });
+    const { findings } = analyzeCoinJoin(tx, undefined, chainCtx(tx, [0, 1]));
+    const generic = findings.find((f) => f.id === "h4-coinjoin")!;
+    const hint = findings.find((f) => f.id === "h4-coinjoin-single-entity")!;
+    expect(hint.params?._variant).toBe("isolated");
+    expect(hint.scoreImpact).toBe(-generic.scoreImpact);
+    expect(variant(tx, chainCtx(tx, [0, 1], { cjParent: true }))).toBeUndefined();
+  });
+
+  it("Whirlpool and WabiSabi never get it, even fully isolated", () => {
+    for (const fixture of [whirlpoolTx, wabisabiTx]) {
+      const tx = fixture as unknown as MempoolTransaction;
+      const equal = tx.vout.map((o, i) => [o.value, i] as const)
+        .filter(([v], _, all) => all.filter(([w]) => w === v).length >= 2).map(([, i]) => i);
+      expect(variant(tx, chainCtx(tx, equal))).toBeUndefined();
+    }
+  });
+});

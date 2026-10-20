@@ -20,6 +20,7 @@ import { enhanceEntropyFinding } from "@/lib/analysis/boltzmann-enhance";
 import { enrichBip47Finding, enrichRicochetFinding } from "@/lib/analysis/enrichment";
 import { getAnalysisSettings, type AnalysisSettings } from "@/lib/analysis/settings";
 import { runChainTrace, runChainAnalysis } from "@/lib/analysis/chain-trace";
+import { buildChildTxsByIdx } from "@/lib/analysis/chain/trace-maps";
 import { makeIncompletePrevoutFinding } from "@/lib/analysis/analysis-state";
 import type { ApiClient } from "@/lib/api/client";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
@@ -233,7 +234,13 @@ export async function runTxidAnalysis(
     parentTxs = new Map([[firstVin.txid, parentTx]]);
   }
 
+  // Spending txs by output index (forward trace layer 1), for heuristics that
+  // look at where the outputs went
+  const childTxs = buildChildTxsByIdx(outspends, forwardLayers, childTx);
+
   const ctx: TxContext = {
+    ...(outspends ? { outspends } : {}),
+    ...(childTxs.size > 0 ? { childTxs } : {}),
     ...(usdPrice ? { usdPrice } : {}),
     ...(eurPrice ? { eurPrice } : {}),
     isCustomApi,
