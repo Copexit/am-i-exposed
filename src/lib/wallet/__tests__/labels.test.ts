@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { History, recv, chg, ext, coinJoin } from "@/lib/analysis/__tests__/fixtures/wallet-history";
 import { parseBip329, serializeBip329, type Bip329Record } from "../bip329";
-import { autoLabels, exportRecords, labelsFilename, matchLabels, parseLabel, setWalletOrigin, walletOriginOf, withFiatValues } from "../labels";
+import { autoLabels, exportRecords, labelsFilename, matchLabels, parseLabel, setCoinFrozen, setWalletOrigin, walletOriginOf, withFiatValues } from "../labels";
 
 describe("parseLabel", () => {
   it.each([
@@ -363,5 +363,20 @@ describe("tx labels on the wallet's own spends", () => {
     expect(matchLabels([{ type: "output", ref: `${plain.txid}:0`, label: "rent" }], infos).checks).toEqual([]);
     const m = matchLabels([{ type: "output", ref: `${plain.txid}:0`, label: "[noKYC] Bisq" }], infos);
     expect(m.checks.find((c) => c.id === "mixed-unlabeled")!.refs).toEqual([`${outs[0]!.txid}:0`]);
+  });
+});
+
+describe("setCoinFrozen", () => {
+  const OP = `${"ab".repeat(32)}:1`;
+  it("adds a spendable: false record, thaws with an explicit spendable: true, keeps other fields", () => {
+    const frozen = setCoinFrozen([], OP.toUpperCase().replace(":1", ":01"), true);
+    expect(frozen).toEqual([{ type: "output", ref: OP, spendable: false }]);
+    expect(setCoinFrozen(frozen, OP, false)).toEqual([{ type: "output", ref: OP, spendable: true }]);
+    const labelled = [{ type: "output" as const, ref: OP, label: "Bob", origin: "x" }];
+    expect(setCoinFrozen(labelled, OP, true)).toEqual([{ ...labelled[0], spendable: false }]);
+  });
+  it("leaves the records alone for thawing an unknown coin or a malformed outpoint", () => {
+    expect(setCoinFrozen([], OP, false)).toEqual([]);
+    expect(setCoinFrozen([], "nope", true)).toEqual([]);
   });
 });

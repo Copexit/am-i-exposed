@@ -42,7 +42,7 @@ export function HintChip({ hint }: { hint: Hint }) {
   const title =
     hint.kind === "group" ? t(hint.inferred ? "wallet.utxos.groupInferredTitle" : "wallet.utxos.groupTitle")
     : hint.kind === "probably-linked" ? t("wallet.coinSel.note.probablyLinked")
-    : hint.kind === "frozen" ? t("wallet.labels.frozenTitle", { defaultValue: "Marked not spendable in the imported labels (spendable: false)" })
+    : hint.kind === "frozen" ? t("wallet.labels.frozenTitle", { defaultValue: "Frozen: left out of coin selection (spendable: false in the labels)" })
     : undefined;
   return <span title={title} className={`text-[11px] leading-none whitespace-nowrap border rounded px-1.5 py-1 ${dashed ? "border-dashed" : ""} ${tone}`}>{label}</span>;
 }

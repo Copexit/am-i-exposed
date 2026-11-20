@@ -140,3 +140,23 @@ for (const width of [1440, 390]) {
     await expect(page.getByTestId("coin-control-bar").getByRole("status")).toHaveText("2 coins selected · 15,832,349 sats");
   });
 }
+
+for (const width of [1440, 390]) {
+  test(`freeze a coin from the list at ${width}px: left out of the advisor, thawed again`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`/#xpub=${ZPUB}`);
+    await expect(page.getByText("Wallet Privacy Audit")).toBeVisible({ timeout: 20_000 });
+    await page.getByRole("button", { name: /Coins \(UTXOs\)/ }).click();
+    const row = page.getByTestId("utxo-row").first();
+    await row.getByRole("button", { name: "Leave coin #1 out of coin selection (freeze)" }).click();
+    await expect(row.getByText("Frozen", { exact: true })).toBeVisible();
+    // No horizontal overflow from the extra button
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await shot(page, row, `test-results/wa-frozen-row-${width}.png`);
+    await page.getByRole("button", { name: /Coin Selection Advisor/ }).click();
+    await expect(page.getByLabel("Include the frozen coin (1)")).toBeVisible();
+    await row.getByRole("button", { name: "Use coin #1 in coin selection again" }).click();
+    await expect(row.getByText("Frozen", { exact: true })).toHaveCount(0);
+    await expect(page.getByLabel("Include the frozen coin (1)")).toHaveCount(0);
+  });
+}

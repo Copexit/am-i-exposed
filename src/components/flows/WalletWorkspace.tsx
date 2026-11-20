@@ -9,7 +9,7 @@ import { CoinSelector } from "@/components/wallet/CoinSelector";
 import { WalletUtxoList } from "@/components/wallet/WalletUtxoList";
 import { fmtN } from "@/lib/format";
 import { buildCoinInputs } from "@/lib/analysis/coin-selection";
-import { withLabels } from "@/lib/wallet/labels";
+import { setCoinFrozen, withLabels } from "@/lib/wallet/labels";
 import type { Bip329Record } from "@/lib/wallet/bip329";
 import { useWalletLabels } from "@/components/wallet/WalletLabels";
 import { WalletLabelsPanel } from "@/components/wallet/WalletLabelsPanel";
@@ -115,7 +115,7 @@ export function WalletWorkspace({ result, addressInfos, utxoTraces, onScan, addr
             open={utxosOpen}
             onToggle={() => setUtxosOpen(o => !o)}
           >
-            <WalletUtxoList addressInfos={addressInfos} onScan={onScan} accountPath={accountPath} control={coinControl} onCompare={() => setCoinsOpen(true)} onImportLabels={() => {
+            <WalletUtxoList addressInfos={addressInfos} onScan={onScan} accountPath={accountPath} control={coinControl} onCompare={() => setCoinsOpen(true)} onFreeze={(outpoint, frozen) => onLabelsChange(setCoinFrozen(labelRecords, outpoint, frozen))} onImportLabels={() => {
               setLabelsOpen(true);
               requestAnimationFrame(() => document.getElementById("wallet-labels")?.scrollIntoView({ block: "start", behavior: "smooth" }));
             }} />
