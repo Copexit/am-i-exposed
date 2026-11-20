@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 vi.mock("react-i18next", async () => {
   const en = (await import("../../../../public/locales/en/common.json")).default as Record<string, string>;
@@ -19,7 +19,8 @@ import { WalletLabelsContext } from "../WalletLabels";
 import { useCoinControl } from "../useCoinControl";
 import { History, chg, decisionTreeReplica, ext, recv, testerHistory, TESTER_CJ_CHANGE } from "@/lib/analysis/__tests__/fixtures/wallet-history";
 import { buildCoinInputs, outpointOf, evaluateSelection } from "@/lib/analysis/coin-selection";
-import { matchLabels, withLabels } from "@/lib/wallet/labels";
+import { matchLabels, setCoinFrozen, withLabels } from "@/lib/wallet/labels";
+import type { Bip329Record } from "@/lib/wallet/bip329";
 import type { WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 
 const { h, addresses } = testerHistory();
@@ -153,6 +154,44 @@ describe("manual coin control", () => {
     fireEvent.click(box(134_361));
     expect(confirm).toHaveBeenCalledTimes(2);
     confirm.mockRestore();
+  });
+});
+
+/** The workspace wiring: the row's freeze button writes the BIP329 records. */
+function FreezeWorkspace({ onRecords }: { onRecords: (r: Bip329Record[]) => void }) {
+  const [records, setRecords] = useState<Bip329Record[]>([]);
+  const labels = useMemo(() => (records.length > 0 ? matchLabels(records, infos) : null), [records]);
+  const utxos = useMemo(() => withLabels(buildCoinInputs(infos), labels), [labels]);
+  const c = useCoinControl(XPUB, utxos);
+  const freeze = (outpoint: string, frozen: boolean) => { const next = setCoinFrozen(records, outpoint, frozen); setRecords(next); onRecords(next); };
+  return (
+    <WalletLabelsContext.Provider value={labels}>
+      <WalletUtxoList addressInfos={infos} onScan={() => {}} control={c} onFreeze={freeze} />
+      <CoinSelector utxos={utxos} control={c} />
+    </WalletLabelsContext.Provider>
+  );
+}
+
+describe("freezing a coin from the list", () => {
+  const freezeBtn = (n: number) => screen.getByRole("button", { name: `Leave coin #${n} out of coin selection (freeze)` });
+
+  it("freezes a coin (deselecting it), leaves it out of the advisor, and thaws it again", () => {
+    let records: Bip329Record[] = [];
+    render(<FreezeWorkspace onRecords={r => { records = r; }} />);
+    fireEvent.click(box(591_429));
+    const row = box(591_429).closest("[data-testid=utxo-row]") as HTMLElement;
+    const n = Number(within(row).getByText(/^#\d+$/).textContent!.slice(1));
+    fireEvent.click(freezeBtn(n));
+    expect(records).toEqual([{ type: "output", ref: op(591_429), spendable: false }]);
+    expect((box(591_429) as HTMLInputElement).checked).toBe(false);
+    expect(within(row).getByText("Frozen")).toBeTruthy();
+    // The advisor leaves it out unless frozen coins are included
+    expect(screen.getByLabelText("Include the frozen coin (1)")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: `Use coin #${n} in coin selection again` }));
+    expect(records).toEqual([{ type: "output", ref: op(591_429), spendable: true }]);
+    expect(within(row).queryByText("Frozen")).toBeNull();
+    expect(screen.queryByLabelText("Include the frozen coin (1)")).toBeNull();
   });
 });
 

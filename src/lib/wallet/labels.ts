@@ -15,7 +15,7 @@ import { buildWalletGraph, coinClass, isOwn, simplePayments, soloSpends } from "
 import { changeExposure } from "@/lib/analysis/wallet-heuristics";
 import { buildCoinInputs, groupLetters } from "@/lib/analysis/coin-selection";
 import { P2PKH_DUST_LIMIT, TOXIC_CHANGE_THRESHOLD } from "@/lib/constants";
-import { AUTO_PREFIX, AUTO_SEPARATOR, MAX_LABEL_LENGTH, recordKey, type Bip329Record } from "./bip329";
+import { AUTO_PREFIX, AUTO_SEPARATOR, MAX_LABEL_LENGTH, normalizeRef, recordKey, type Bip329Record } from "./bip329";
 
 // ---------- Convention ----------
 
@@ -212,6 +212,20 @@ export function setWalletOrigin(records: readonly Bip329Record[], xpub: string, 
   const keep = Object.keys(next).length > 2;
   if (i < 0) return keep ? [...records, next] : [...records];
   return keep ? records.map((r, j) => (j === i ? next : r)) : records.filter((_, j) => j !== i);
+}
+
+/**
+ * Records with a coin frozen (spendable: false, left out of coin selection) or
+ * thawed. Thawing keeps an explicit spendable: true so an export overrides a
+ * freeze in the wallet it came from; an outpoint without a record is frozen by
+ * adding one.
+ */
+export function setCoinFrozen(records: readonly Bip329Record[], outpoint: string, frozen: boolean): Bip329Record[] {
+  const ref = normalizeRef("output", outpoint);
+  if (!ref) return [...records];
+  const i = records.findIndex((r) => r.type === "output" && r.ref === ref);
+  if (i < 0) return frozen ? [...records, { type: "output", ref, spendable: false }] : [...records];
+  return records.map((r, j) => (j === i ? { ...r, spendable: !frozen } : r));
 }
 
 /** Match records against the scanned wallet and resolve each unspent coin's label. */

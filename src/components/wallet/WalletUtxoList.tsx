@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, Snowflake } from "lucide-react";
 import type { WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 import { buildCoinInputs, groupLetters, INPUT_VB, scriptType, withHints } from "@/lib/analysis/coin-selection";
 import { parseLabel, type LabelTag } from "@/lib/wallet/labels";
@@ -25,7 +25,7 @@ const COLS = "md:grid-cols-[3.5rem_minmax(0,1.1fr)_6.5rem_minmax(0,1fr)_8rem_min
 const MOBILE_FULL = "col-start-2 col-span-2 md:col-start-auto md:col-span-1";
 
 /** Every coin of the wallet: amount, outpoint, address, age and origin hints. */
-export function WalletUtxoList({ addressInfos, onScan, accountPath, control, onCompare, onImportLabels }: {
+export function WalletUtxoList({ addressInfos, onScan, accountPath, control, onCompare, onImportLabels, onFreeze }: {
   addressInfos: WalletAddressInfo[];
   onScan: (txid: string) => void;
   /** Account derivation path (e.g. m/84'/1'/0') when known */
@@ -36,6 +36,8 @@ export function WalletUtxoList({ addressInfos, onScan, accountPath, control, onC
   onCompare?: () => void;
   /** Open the labels import (from the no-labels hint) */
   onImportLabels?: () => void;
+  /** Freeze (leave out of coin selection) or thaw a coin: a button per row */
+  onFreeze?: (outpoint: string, frozen: boolean) => void;
 }) {
   const { t } = useTranslation();
   const tip = useChainTip();
@@ -164,7 +166,7 @@ export function WalletUtxoList({ addressInfos, onScan, accountPath, control, onC
                 checked={checked}
                 onChange={e => {
                   // Frozen by a label: selectable only after a confirmation.
-                  if (e.target.checked && label?.frozen && !window.confirm(t("wallet.coinControl.frozenConfirm", { defaultValue: "This coin is frozen by its label. Select it anyway?" }))) return;
+                  if (e.target.checked && label?.frozen && !window.confirm(t("wallet.coinControl.frozenConfirm", { defaultValue: "This coin is frozen. Select it anyway?" }))) return;
                   control.toggle(outpoint, e.target.checked);
                 }}
                 aria-label={t("wallet.coinControl.select", { n: r.n, amount: fmtN(value), defaultValue: "Select coin #{{n}} ({{amount}} sats)" })}
@@ -198,7 +200,7 @@ export function WalletUtxoList({ addressInfos, onScan, accountPath, control, onC
               className="shrink-0 inline-flex items-center justify-center size-10 -my-2 -mx-1.5"
             />
           </span>
-          <span role="cell" data-testid="utxo-amount" className="num text-[13px] text-foreground text-right whitespace-nowrap col-start-3 row-start-1 md:col-start-auto md:row-start-auto md:order-last">
+          <span role="cell" data-testid="utxo-amount" className={`num text-[13px] text-right whitespace-nowrap col-start-3 row-start-1 md:col-start-auto md:row-start-auto md:order-last ${label?.frozen ? "text-faint line-through" : "text-foreground"}`}>
             {fmtN(value)} {sats}
           </span>
           <span role="cell" className="flex items-center gap-2 min-w-0 col-start-2 md:col-start-auto" title={pathTitle(r.derived)}>
@@ -216,7 +218,28 @@ export function WalletUtxoList({ addressInfos, onScan, accountPath, control, onC
             <span className="num text-[12px] text-muted truncate" title={r.address}>{r.address.slice(0, 8)}...{r.address.slice(-6)}</span>
           </span>
           <span role="cell" className={`text-[12px] md:text-[13px] ${status.confirmed ? "text-muted" : "text-severity-medium"} ${MOBILE_FULL}`}>{age}</span>
-          <span role="cell" className={`flex flex-wrap gap-1.5 empty:hidden md:empty:block ${MOBILE_FULL}`}>
+          <span role="cell" className={`flex flex-wrap items-center gap-1.5 empty:hidden md:empty:block ${MOBILE_FULL}`}>
+            {onFreeze && (
+              <button
+                type="button"
+                data-testid="utxo-freeze"
+                aria-pressed={!!label?.frozen}
+                onClick={() => {
+                  // A coin left out of selection is not kept selected either.
+                  if (!label?.frozen) control?.toggle(outpoint, false);
+                  onFreeze(outpoint, !label?.frozen);
+                }}
+                title={label?.frozen
+                  ? t("wallet.utxos.unfreeze", { n: r.n, defaultValue: "Use coin #{{n}} in coin selection again" })
+                  : t("wallet.utxos.freeze", { n: r.n, defaultValue: "Leave coin #{{n}} out of coin selection (freeze)" })}
+                aria-label={label?.frozen
+                  ? t("wallet.utxos.unfreeze", { n: r.n, defaultValue: "Use coin #{{n}} in coin selection again" })
+                  : t("wallet.utxos.freeze", { n: r.n, defaultValue: "Leave coin #{{n}} out of coin selection (freeze)" })}
+                className={`inline-flex items-center justify-center size-10 -my-2 -ml-2 shrink-0 rounded-md cursor-pointer transition-colors ${label?.frozen ? "text-severity-low" : "text-faint hover:text-foreground"}`}
+              >
+                <Snowflake size={14} aria-hidden="true" />
+              </button>
+            )}
             {r.hints.map(h => <HintChip key={h.kind} hint={h} />)}
           </span>
           {(label || checksOf.has(outpoint)) && (
